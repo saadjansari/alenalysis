@@ -4,6 +4,8 @@ from random import sample
 import matplotlib.pyplot as plt
 import pdb
 import vtk
+from CalcOrderParametersLocal import * 
+from CalcPackingFraction import * 
 
 # DataSeries {{{
 class DataSeries:
@@ -108,14 +110,30 @@ class DataSeries:
     # Unfold NJIT }}}
 # DataSeries }}}
 
+# FilamentSeries {{{
 class FilamentSeries(DataSeries):
     """Class for handling data related to filaments."""
-    def __init__(self, gid, pos_minus, pos_plus, orientation, box_size, time_snap=1, kT=0.00411, diameter=1):
+    def __init__(self, gid, pos_minus, pos_plus, orientation, 
+            box_size, time_snap=1, kT=0.00411, diameter=1):
         super().__init__(gid, pos_minus, pos_plus, box_size, time_snap, kT)
         self.orientation_ = orientation     # size 3 x N x T
         self.nfil_ = self.pos_plus_.shape[1]
         self.diameter_ = diameter
+        self.CalcLocalOrder()
+        self.CalcLocalPackingFraction()
 
+    # Methods:
+    # Local Order {{{
+    def CalcLocalOrder(self, max_dist_ratio=50):
+        self.local_polar_order_, self.local_nematic_order_ = calc_local_order(self.get_com(), self.orientation_,self.box_size_, max_dist_ratio*self.diameter_)
+    # }}}
+    
+    # Local Packing Fraction {{{
+    def CalcLocalPackingFraction(self, max_dist_ratio=50):
+        self.local_packing_fraction_ = calc_local_packing_fraction(self.pos_minus_, 
+                self.pos_plus_,self.diameter_, self.box_size_)
+    # }}}
+    
     # Plot trajectories {{{
     def plot_trajectories(self, savepath, fil_index=None, n_samples=10, which_end='com', **kwargs):
 
@@ -150,7 +168,9 @@ class FilamentSeries(DataSeries):
         plt.savefig(savepath)
         plt.close()
         # }}}
+# }}}
 
+# CrosslinkerSeries {{{
 class CrosslinkerSeries(DataSeries):
     """Class for handling data related to crosslinkers."""
     def __init__(self, gid, pos_minus, pos_plus, link0, link1, box_size, time_snap=1, kT=0.00411, kappa=1.0, rest_length=0.5):
@@ -318,6 +338,7 @@ class CrosslinkerSeries(DataSeries):
         plt.savefig(savepath)
         plt.close()
     # Plot trajectories }}}
+# }}}
 
 # class Boundary():
     # """Class for confinement boundary of simulation
