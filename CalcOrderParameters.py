@@ -165,7 +165,7 @@ def calc_nematic_tensor( orient_array):
     Q = Q/n_fil - np.identity(3)/3
     return Q
 
-@njit
+# @njit
 def calc_z_ordering( orient_array):
     """
     Calculates the ordering in Z
@@ -178,16 +178,22 @@ def calc_z_ordering( orient_array):
     # Num filaments
     n_fil = orient_array.shape[1]
 
-    # Number of frames 
-    n_frames = orient_array.shape[2]
+    # # Number of frames 
+    # n_frames = orient_array.shape[2]
     
-    Zorder = np.zeros(n_frames)
-    for jframe in np.arange(n_frames):
+    # # Initialize return array
+    # Zorder = np.zeros(n_frames)
 
-        sum_all = 0
-        for idx in np.arange( n_fil):
-            sum_all += np.absolute( orient_array[:,idx,jframe].dot(z_axis) )
+    # for jframe in np.arange(n_frames):
 
-        Zorder[jframe] = sum_all/n_fil
+        # sum_all = 0
+        # for idx in np.arange( n_fil):
+            # sum_all += np.absolute( orient_array[:,idx,jframe].dot(z_axis) )
 
+        # Zorder[jframe] = sum_all/n_fil
+
+    # Calculate orientational order w.r.t axis
+    orient_order = np.tensordot(orient_array, z_axis, axes=((0),(0)))
+    Zorder = np.sum( np.absolute(orient_order), axis=0) / n_fil
+    
     return Zorder

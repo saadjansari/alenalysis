@@ -17,7 +17,9 @@ def PlotEffectiveDiameter(FData, savepath):
 
     # Plots
     fig,ax = plt.subplots()
+    pdb.set_trace()
     counts = ax.hist(overlaps, bins, density=True)[0]
+    pdb.set_trace()
     
     # Effective diameter
     Deff = np.sum( counts*cen) / np.sum(counts)

@@ -7,6 +7,7 @@ from DataHandler import *
 def PlotStateCounts( FData, XData, savepath):
     """ Plot total number of xlinkers in each crosslinker state vs time """
 
+    print('Plotting Crosslinker State Counts...')
     # Number of xlinks
     nxf,nxs,nxd = calc_num_xlink(XData.link0_, XData.link1_)
 
@@ -32,6 +33,7 @@ def PlotStateCounts( FData, XData, savepath):
 def PlotXlinkPerFilamentVsTime( FData, XData, savepath):
     """ Plot number of xlinkers for each filament vs time """
 
+    print('Plotting Number of Crosslinkers Per Filament Per Time Image...')
     nxs,nxd = calc_num_xlink_filament(XData.link0_, XData.link1_, FData.nfil_)
 
     fig,axs = plt.subplots(1,2, figsize=(12,6), sharey=True)
@@ -54,6 +56,7 @@ def PlotXlinkPerFilamentVsTime( FData, XData, savepath):
 def PlotXlinkPerFilament( FData, XData, savepath):
     """ Plot number of xlinkers for each filament """
 
+    print('Plotting Crosslinker Per Filament Histogram...')
     nxs,nxd = calc_num_xlink_filament(XData.link0_, XData.link1_, FData.nfil_)
 
     fig,axs = plt.subplots(1, 3, figsize=(12,3))
@@ -71,6 +74,7 @@ def PlotXlinkPerFilament( FData, XData, savepath):
 def PlotXlinkPerFilamentVsTimeMax( FData, XData, savepath, numPlot=5):
     """ Plot number of xlinkers for each filament vs time for the xlinkers with max val"""
 
+    print('Plotting Crosslinker Per Filament Vs Time for heavily saturated filaments...')
     nxs,nxd = calc_num_xlink_filament(XData.link0_, XData.link1_, FData.nfil_)
     nx_all = nxs+nxd
 

@@ -151,7 +151,6 @@ class FilamentSeries(DataSeries):
         plt.close()
         # }}}
 
-
 class CrosslinkerSeries(DataSeries):
     """Class for handling data related to crosslinkers."""
     def __init__(self, gid, pos_minus, pos_plus, link0, link1, box_size, time_snap=1, kT=0.00411, kappa=1.0, rest_length=0.5):
@@ -164,7 +163,6 @@ class CrosslinkerSeries(DataSeries):
         self.rest_length_ = rest_length
 
     # Methods
-
     # Binding State {{{
     def get_bind_state(self, xlink_index=None):
         """
@@ -219,6 +217,7 @@ class CrosslinkerSeries(DataSeries):
     # Plot length
     def plot_length_mean_vs_time(self, savepath, **kwargs):
 
+        print('Plotting Mean Crosslinker Length Vs Time...')
         # Time array
         times = self.time_snap_*np.arange(self.nframe_)
 
@@ -230,7 +229,10 @@ class CrosslinkerSeries(DataSeries):
         fig, ax = plt.subplots()
         for jt in range(self.nframe_):
             # Mean and std of crosslinker length
-            len_array[jt,:] = [np.mean(len_raw[jt]), np.std(len_raw[jt])]
+            if len( len_raw[jt]) > 0:
+                len_array[jt,:] = [np.mean(len_raw[jt]), np.std(len_raw[jt])]
+            else:
+                len_array[jt,:] = [np.nan, np.nan]
 
         ax.errorbar(times, len_array[:,0], yerr=len_array[:,1], 
                 marker='.', ms=1, mew=0.5, mfc="None", alpha=0.5,
@@ -249,6 +251,7 @@ class CrosslinkerSeries(DataSeries):
     # Plot energies 
     def plot_energy_mean_vs_time(self, savepath, **kwargs):
 
+        print('Plotting Crosslinker Mean Energy Vs Time...')
         # Time array
         times = self.time_snap_*np.arange(self.nframe_)
 
@@ -260,7 +263,11 @@ class CrosslinkerSeries(DataSeries):
         fig, ax = plt.subplots()
         for jt in range(self.nframe_):
             # Mean and std of crosslinker energy
-            eng_array[jt,:] = [np.mean(eng_raw[jt]), np.std(eng_raw[jt])]
+            if len( eng_raw[jt]) > 0:
+                eng_array[jt,:] = [np.mean(eng_raw[jt]), np.std(eng_raw[jt])]
+            else:
+                eng_array[jt,:] = [np.nan, np.nan]
+
 
         ax.errorbar(times, eng_array[:,0], yerr=eng_array[:,1], 
                 marker='.', ms=1, mew=0.5, mfc="None", alpha=0.5,
@@ -311,6 +318,18 @@ class CrosslinkerSeries(DataSeries):
         plt.savefig(savepath)
         plt.close()
     # Plot trajectories }}}
+
+# class Boundary():
+    # """Class for confinement boundary of simulation
+    # Styles:
+    # --------------------
+    # C: cylindrical confinement;q;;q;
+    
+    # """
+    # def __init__(self, style, X,Y,Z):
+        # if style == 'C'         # Cylindrical condinement
+            
+
 
 # class ConstraintSeries():
     # """Class for handling data related to constraints."""

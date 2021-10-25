@@ -13,6 +13,16 @@ mainpath = Path('/scratch/summit/saan8193/alens/conf_scan/sims')
 sim_names = [
         'U1_PF4_X3_w1_p1_k1',
         ]
+mainpath = Path('/Users/saadjansari/Documents/Projects/Results/Tactoids')
+sim_names = [
+        # 'tactoid_vol_exclusion/test',
+        # 'tactoid_vol_exclusion/test_lambda0',
+        # 'length150_nosteric',
+        # 'Usteric/U1.6',
+        # 'Usteric/U3.2',
+        # 'Usteric/U6.4'
+        'fine',
+        ]
 
 for sim_name in sim_names:
     simpath = mainpath / sim_name
