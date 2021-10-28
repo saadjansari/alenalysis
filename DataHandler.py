@@ -4,19 +4,18 @@ from random import sample
 import matplotlib.pyplot as plt
 import pdb
 import vtk
+from unfold_trajectories import *
 from CalcOrderParametersLocal import * 
 from CalcPackingFraction import * 
 
 # DataSeries {{{
 class DataSeries:
     """Class for handling data"""
-    def __init__(self, gid, pos_minus, pos_plus, box_size, time_snap=1, kT=0.00411):
+    def __init__(self, gid, pos_minus, pos_plus, config):
         self.gid_ = gid                     # size N x T
         self.pos_minus_ = pos_minus         # size 3 x N x T
         self.pos_plus_ = pos_plus           # size 3 x N x T
-        self.box_size_ = box_size           # size 3 x 1
-        self.time_snap_ = time_snap         # float
-        self.kT_ = kT                       # float
+        self.config_ = config               # dictionary of configuration parameters
         self.nframe_ = self.pos_minus_.shape[2]
         self.ndim_ = self.pos_minus_.shape[0]
 
@@ -40,7 +39,7 @@ class DataSeries:
         else:
             raise Exception("which_end must be 'plus', 'minus', or 'com'")
 
-        crds_unfolded = self.unfold_trajectory_njit(crds,self.box_size_)
+        crds_unfolded = unfold_trajectory_njit(crds,self.config_['box_size'])
         return crds_unfolded
 
     def unfold_trajectories(self, which_end):
@@ -49,8 +48,6 @@ class DataSeries:
         -------------
         pos: 3D float array
             Size is nDim x nFil x nTime
-        box_size: list or 1D array
-            size is nDim x 1
         """
         if which_end == 'minus':
             crds = self.pos_minus_
@@ -61,78 +58,37 @@ class DataSeries:
         else:
             raise Exception("which_end must be 'plus','minus', or 'com'")
 
-        pos_unfolded = self.unfold_trajectories_njit(crds,self.box_size_)
+        pos_unfolded = unfold_trajectories_njit(crds,self.config_['box_size'])
         return pos_unfolded
     # }}}
 
-    # Unfold NJIT {{{
-    @staticmethod
-    @nb.njit
-    def unfold_trajectory_njit(crds, box_size):
-        # unfolded crds via the nearest image convention
-
-        # Note that we transpose so that dimensional order is nTime x nDim
-        crds = crds.transpose()
-
-        # reference coordinate
-        crds_unfolded = np.zeros_like(crds)
-        crds_unfolded[0,:] = crds[0,:]
-        for jdim in np.arange(crds.shape[1]):
-            L = box_size[jdim]
-            for jt in np.arange(1,crds.shape[0]):
-                Xi = (crds_unfolded[jt-1,jdim] - crds[jt,jdim]) + L/2.0
-                Xi = Xi - L*np.floor(Xi/L)
-                d = (L/2.0) - Xi
-                crds_unfolded[jt,jdim] = crds_unfolded[jt-1,jdim] + d
-        return crds_unfolded.transpose()
-
-    @staticmethod
-    @nb.njit
-    def unfold_trajectories_njit(pos, box_size):
-        """
-        Inputs:
-        -------------
-        pos: 3D float array
-            Size is nDim x nObjects x nTime
-        box_size: list or 1D array
-            size is nDim x 1
-        """
-
-        pos_unfolded = np.zeros_like(pos)
-
-        # Loop over objects
-        for jobj in np.arange(pos.shape[1]):
-
-            # For each object, unfold it's coordinates
-            pos_unfolded[:,jobj,:] = self.unfold_trajectory_njit( pos[:,jobj,:], box_size)
-        
-        return pos_unfolded
-    # Unfold NJIT }}}
 # DataSeries }}}
 
 # FilamentSeries {{{
 class FilamentSeries(DataSeries):
     """Class for handling data related to filaments."""
-    def __init__(self, gid, pos_minus, pos_plus, orientation, 
-            box_size, time_snap=1, kT=0.00411, diameter=1):
-        super().__init__(gid, pos_minus, pos_plus, box_size, time_snap, kT)
+    def __init__(self, gid, pos_minus, pos_plus, orientation, config):
+        super().__init__(gid, pos_minus, pos_plus, config)
         self.orientation_ = orientation     # size 3 x N x T
         self.nfil_ = self.pos_plus_.shape[1]
-        self.diameter_ = diameter
+
+    # Methods:
+    # Local Structure {{{
+    def CalcLocalStructure(self):
         self.CalcLocalOrder()
         self.CalcLocalPackingFraction()
 
-    # Methods:
     # Local Order {{{
     def CalcLocalOrder(self, max_dist_ratio=50):
-        self.local_polar_order_, self.local_nematic_order_ = calc_local_order(self.get_com(), self.orientation_,self.box_size_, max_dist_ratio*self.diameter_)
+        self.local_polar_order_, self.local_nematic_order_ = calc_local_order(self.get_com(), self.orientation_, self.config_['box_size'], max_dist_ratio*self.config_['diameter_fil'])
     # }}}
     
     # Local Packing Fraction {{{
     def CalcLocalPackingFraction(self, max_dist_ratio=50):
         self.local_packing_fraction_ = calc_local_packing_fraction(self.pos_minus_, 
-                self.pos_plus_,self.diameter_, self.box_size_)
+                self.pos_plus_,self.config_['diameter_fil'], self.config_['box_size'])
     # }}}
+    # }}} 
     
     # Plot trajectories {{{
     def plot_trajectories(self, savepath, fil_index=None, n_samples=10, which_end='com', **kwargs):
@@ -142,7 +98,7 @@ class FilamentSeries(DataSeries):
             fil_index = sample( list(np.arange(self.nfil_)), n_samples)
 
         # Time array
-        times = self.time_snap_*np.arange(self.nframe_)
+        times = self.config_['time_snap']*np.arange(self.nframe_)
 
         # Dimension labels
         dim_names = [r'$X / \mu m$', r'$Y / \mu m$', r'$Z / \mu m$']
@@ -167,20 +123,19 @@ class FilamentSeries(DataSeries):
         plt.tight_layout()
         plt.savefig(savepath)
         plt.close()
-        # }}}
-# }}}
+    # }}}
+
+    # }}}
 
 # CrosslinkerSeries {{{
 class CrosslinkerSeries(DataSeries):
     """Class for handling data related to crosslinkers."""
-    def __init__(self, gid, pos_minus, pos_plus, link0, link1, box_size, time_snap=1, kT=0.00411, kappa=1.0, rest_length=0.5):
-        super().__init__(gid, pos_minus, pos_plus, box_size, time_snap, kT)
+    def __init__(self, gid, pos_minus, pos_plus, link0, link1, config):
+        super().__init__(gid, pos_minus, pos_plus, config)
         self.gid_ = gid                     # size N x T
         self.link0_ = link0                 # size N x T
         self.link1_ = link1                 # size N x T
         self.nxlink_ = self.pos_plus_.shape[1]
-        self.kappa_ = kappa
-        self.rest_length_ = rest_length
 
     # Methods
     # Binding State {{{
@@ -226,12 +181,13 @@ class CrosslinkerSeries(DataSeries):
     def get_energy(self):
         # get spring energy of doubly-bound crosslinkers
         # List (times)  of lists (crosslinker lengths)
+        kappa = self.config_['kappa'][0]
+        rest_len = self.config_['rest_length'][0]
 
         lens = self.get_length()
         energies = []
         for jt in range(self.nframe_):
-           energies.append( [(self.kappa_/2)*(jlen-self.rest_length_)**2 for jlen in lens[jt] ] )
-
+           energies.append( [(kappa/2)*(jlen-rest_len)**2 for jlen in lens[jt] ] )
         return energies 
 
     # Plot length
@@ -239,7 +195,7 @@ class CrosslinkerSeries(DataSeries):
 
         print('Plotting Mean Crosslinker Length Vs Time...')
         # Time array
-        times = self.time_snap_*np.arange(self.nframe_)
+        times = self.config_['time_snap']*np.arange(self.nframe_)
 
         # List of lengths
         len_raw = self.get_length()
@@ -273,7 +229,7 @@ class CrosslinkerSeries(DataSeries):
 
         print('Plotting Crosslinker Mean Energy Vs Time...')
         # Time array
-        times = self.time_snap_*np.arange(self.nframe_)
+        times = self.config_['time_snap']*np.arange(self.nframe_)
 
         # List of energies
         eng_raw = self.get_energy()
@@ -312,7 +268,7 @@ class CrosslinkerSeries(DataSeries):
             xlink_index = sample( list(np.arange(self.nxlink_)), n_samples)
 
         # Time array
-        times = self.time_snap_*np.arange(self.nframe_)
+        times = self.config_['time_snap']*np.arange(self.nframe_)
 
         # Dimension labels
         dim_names = [r'$X / \mu m$', r'$Y / \mu m$', r'$Z / \mu m$']

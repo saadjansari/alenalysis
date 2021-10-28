@@ -12,7 +12,7 @@ def PlotStateCounts( FData, XData, savepath):
     nxf,nxs,nxd = calc_num_xlink(XData.link0_, XData.link1_)
 
     # Display
-    timeStep = FData.time_snap_
+    timeStep = FData.config_['time_snap']
     timeArray = timeStep * np.arange(FData.nframe_)
 
     fig,ax = plt.subplots()
@@ -83,7 +83,7 @@ def PlotXlinkPerFilamentVsTimeMax( FData, XData, savepath, numPlot=5):
     inds = np.argpartition(nx_max, -numPlot)[-numPlot:]
 
     # Display
-    timeStep = FData.time_snap_
+    timeStep = FData.config_['time_snap']
     timeArray = timeStep * np.arange(FData.nframe_)
 
     fig,ax = plt.subplots(figsize=(8,3))

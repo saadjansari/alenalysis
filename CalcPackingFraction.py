@@ -80,7 +80,7 @@ def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
 
     # ensure points are within boxsize
     for jdim in range(cs.shape[0]):
-        cs[jdim, cs[jdim,:]< boxsize[jdim]] +=boxsize[jdim]
+        cs[jdim, cs[jdim,:]< 0] +=boxsize[jdim]
         cs[jdim, cs[jdim,:]> boxsize[jdim]] -=boxsize[jdim]
     
     # Initialize kdtree

@@ -2,6 +2,7 @@ from numba import njit
 import numpy as np
 import decorators
 from DataHandler import *
+import scipy.spatial.ckdtree
 
 # Plotting
 def PlotEffectiveDiameter(FData, savepath):
@@ -9,7 +10,7 @@ def PlotEffectiveDiameter(FData, savepath):
 
     print('Plotting effective diameter')
     # Overlaps
-    overlaps = calc_effective_diameter( FData.pos_minus_, FData.pos_plus_, FData.diameter_)
+    overlaps = calc_effective_diameter( FData.pos_minus_, FData.pos_plus_, FData.config_['diameter_fil'])
 
     # Bins
     bins = np.linspace(0,1,100)
@@ -17,9 +18,7 @@ def PlotEffectiveDiameter(FData, savepath):
 
     # Plots
     fig,ax = plt.subplots()
-    pdb.set_trace()
     counts = ax.hist(overlaps, bins, density=True)[0]
-    pdb.set_trace()
     
     # Effective diameter
     Deff = np.sum( counts*cen) / np.sum(counts)
@@ -34,6 +33,7 @@ def PlotEffectiveDiameter(FData, savepath):
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
 
+@decorators.timer
 def calc_effective_diameter(pos_minus, pos_plus, diameter):
     # Calculate the effective diameter by computing overlaps 
     
@@ -43,8 +43,8 @@ def calc_effective_diameter(pos_minus, pos_plus, diameter):
     # Overlap distance list
     overlapList = []
 
-    for jframe in range(0,n_frames,10):
-        print('Frame = {0}/{1}'.format(jframe,n_frames) )
+    for jframe in range(0,n_frames,100):
+        print('Frame = {0}/{1}'.format(jframe,n_frames), end='\r', flush=True )
     
         # overlap matrix (normalized by filament diameter)
         bmat = minDistBetweenAllFilaments( pos_minus[:,:,jframe], 
@@ -163,17 +163,6 @@ def minDistBetweenTwoFil(p1, p2, p3, p4):
     # cp_2 = p4+tc*v  # Closest point on object 2
     return distance
 
-# @njit
-# def minDistToRefFilament(ref0,ref1,pos0,pos1):
-
-    # n_fil = pos.shape[1]
-    # dvec = np.zeros(n_fil)
-    # for idx in np.arange( n_fil):
-        # dvec[idx] = minDistBetweenTwoFil(ref0,ref1, pos0[:,idx], pos1[:,idx])
-        # if dvec[idx] == 0:
-            # dvec[idx] = 1000
-    # return dvec
-
 @njit
 def minDistBetweenAllFilaments(a0,a1, b0,b1):
 
@@ -190,3 +179,66 @@ def minDistBetweenAllFilaments(a0,a1, b0,b1):
                 dmat[idx2,idx1] = dmat[idx1,idx2]
                 
     return dmat
+
+# def PlotEffectiveDiameterKD(FData, savepath):
+    # """ Plot the effective diameter probablity distribution via KD"""
+
+    # print('Plotting effective diameter')
+    # # Overlaps
+    # overlaps = calc_effective_diameter_kd( FData.pos_minus_, FData.pos_plus_, FData.config_['diameter_fil'])
+
+    # # Bins
+    # bins = np.linspace(0,1,100)
+    # cen = (bins[:-1]+bins[1:])/2
+
+    # # Plots
+    # fig,ax = plt.subplots()
+    # counts = ax.hist(overlaps, bins, density=True)[0]
+    
+    # # Effective diameter
+    # Deff = np.sum( counts*cen) / np.sum(counts)
+
+    # # Labels
+    # ax.set(xlabel='Collision diameter / D', 
+            # ylabel='Probability Density', 
+            # title='Effective Diameter = {:.3f}D'.format(Deff))
+    # ax.set_xlim(left=-0.001)
+    # ax.set_ylim(bottom=-0.01)
+
+    # plt.tight_layout()
+    # plt.savefig(savepath, bbox_inches="tight")
+
+# @decorators.timer
+# def calc_effective_diameter_kd(pos_minus, pos_plus, diameter):
+    # # Calculate the effective diameter by computing overlaps 
+    
+    # # Number of frames 
+    # n_frames = pos_minus.shape[2]
+
+    # # Overlap distance list
+    # overlapList = []
+    
+    # # Max filament length
+    # max_len = 1.2*np.max( ( np.linalg.norm( pos_plus-pos_minus, axis=0)) )
+
+    # for jframe in range(0,n_frames,100):
+        # print('Frame = {0}/{1}'.format(jframe,n_frames), end='\r', flush=True )
+
+        # # Determine which pair distances to consider
+        # coms = (pos_minus[:,:,jframe] + pos_plus[:,:,jframe])/2
+        # kdtree = scipy.spatial.cKDTree( coms.transpose())
+        # pairs = kdtree.query_pairs(r=max_len)
+        # for (f1,f2) in pairs:
+            # if f1 == f2: 
+                # continue
+            # dd = minDistBetweenTwoFil(
+                    # pos_minus[:,f1,jframe], 
+                    # pos_plus[:,f1,jframe], 
+                    # pos_minus[:,f2,jframe], 
+                    # pos_plus[:,f2,jframe]
+                    # ) / diameter
+            
+            # if dd <= 1:
+                # overlapList.append( dd )
+    
+    # return np.array( overlapList)

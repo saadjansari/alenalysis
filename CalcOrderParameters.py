@@ -12,7 +12,7 @@ def PlotNematicOrder(FData, savepath):
     S = calc_nematic_order( FData.orientation_)
 
     # Display
-    timeStep = FData.time_snap_
+    timeStep = FData.config_['time_snap']
     timeArray = timeStep * np.arange(FData.nframe_)
 
     fig,ax = plt.subplots()
@@ -33,7 +33,7 @@ def PlotPolarOrder(FData, savepath):
     P = calc_polar_order( FData.orientation_)
 
     # Display
-    timeStep = FData.time_snap_
+    timeStep = FData.config_['time_snap']
     timeArray = timeStep * np.arange(FData.nframe_)
 
     fig,ax = plt.subplots()
@@ -54,7 +54,7 @@ def PlotZOrder(FData, savepath):
     Z = calc_z_ordering( FData.orientation_)
 
     # Display
-    timeStep = FData.time_snap_
+    timeStep = FData.config_['time_snap']
     timeArray = timeStep * np.arange(FData.nframe_)
 
     fig,ax = plt.subplots()
@@ -78,7 +78,7 @@ def PlotNematicAndPolarOrder(FData, savepath):
     P = calc_polar_order( FData.orientation_)
 
     # Display
-    timeStep = FData.time_snap_
+    timeStep = FData.config_['time_snap']
     timeArray = timeStep * np.arange(FData.nframe_)
 
     fig,ax = plt.subplots()
