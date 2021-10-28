@@ -11,12 +11,14 @@ def read_sim(spath, conf='U'):
 
     # read config files
     print('   Reading yaml config...')
-    box_size = get_boxsize_confined(spath, conf)
-    time_snap = get_timeSnap(spath)
-    kappa = get_spring_constant(spath, idx=0)
-    rest_length = get_rest_length(spath, idx=0)
-    kT = get_kT(spath)
-    diameter_fil = get_diameter_sylinder(spath)
+    # box_size = get_boxsize_confined(spath, conf)
+    # time_snap = get_timeSnap(spath)
+    # kappa = get_spring_constant(spath, idx=0)
+    # rest_length = get_rest_length(spath, idx=0)
+    # kT = get_kT(spath)
+    # diameter_fil = get_diameter_sylinder(spath)
+    # geometry = get_confining_geometry(spath)
+    config = get_config(spath)
 
     # find data files of sim
     files_sylinder, files_protein, files_constraint = find_all_frames(spath / 'result')
@@ -27,11 +29,13 @@ def read_sim(spath, conf='U'):
 
     # Filaments
     pos_minus, pos_plus, orientation, gid = read_all_sylinder(files_sylinder)
-    FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, box_size, time_snap, kT, diameter_fil)
+    # FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, box_size, time_snap, kT, diameter_fil)
+    FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, config)
 
     # Crosslinkers
     gid, pos0, pos1, link0, link1 = read_all_protein(files_protein)
-    XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, box_size, time_snap, kT, kappa, rest_length)
+    # XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, box_size, time_snap, kT, kappa, rest_length)
+    XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, config)
 
     # Constraints
     # stress_uni, stress_bi = read_all_constraint(files_constraint)
