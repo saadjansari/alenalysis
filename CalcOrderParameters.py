@@ -148,7 +148,7 @@ def calc_nematic_tensor( orient_array):
     """
     Calculates the nematic tensor Q
     Inputs: 
-        orient_array : 3 x N x T (where N is number of filaments, T is number of frames)
+        orient_array : 3 x N (where N is number of filaments)
     """
 
     # Num filaments

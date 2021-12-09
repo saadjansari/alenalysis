@@ -38,7 +38,7 @@ def PlotRDF(FData, savepath, frame_avg_window=10,**kwargs):
                 np.mean(gr_end, axis=0) - np.std(gr_end, axis=0),
                 np.mean(gr_end, axis=0) + np.std(gr_end, axis=0),
                 color=cols[jend], alpha=0.2)
-    ax.set_xlim(left=-0.01)
+    # ax.set_xlim(left=-0.01)
     ax.set(xlabel=r'r / $\mu m$')
     ax.set(ylabel=r'$g(r)$', yscale='log')
     ax.set(title='RDF: Frame Window = {0}'.format(frame_avg_window))

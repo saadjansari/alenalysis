@@ -9,18 +9,31 @@ from CalcOrderParameters import *
 from CalcOrderParametersLocal import *
 from CalcOverlaps import *
 from CalcMSD import *
-from CalcRDF import *
+# from CalcRDF import *
+# from CalcDensityMaps import *
+from CalcLocalMaps import *
+from CalcCondensation import *
+from CalcCondensation import *
+from CalcMobility import *
 
 # Define sims to analyze
-mainpath = Path('/Users/saadjansari/Documents/Projects/Results/Tactoids')
+mainpath = Path('/Users/saadjansari/Documents/Projects/Results/SampleConf/Fig3')
 sim_names = [
         # 'tactoid_vol_exclusion/test',
         # 'tactoid_vol_exclusion/test_lambda0',
         # 'length150_nosteric',
-        'Usteric/U1.6',
+        # 'Usteric/U1.6',
         # 'Usteric/U3.2',
         # 'Usteric/U6.4'
-        # 'fine',
+        # 'C1_PF8_X3_w1_p1_k1',
+        # 'C2_PF8_X3_w1_p1_k1',
+        'C3_PF8_X1_w1_p1_k1',
+        'C3_PF8_X2_w1_p1_k1',
+        'C3_PF8_X3_w1_p1_k1',
+        'C3_PF8_X4_w1_p1_k1',
+        # 'P1_PF8_X3_w1_p1_k1',
+        # 'P2_PF8_X3_w1_p1_k1',
+        # 'P3_PF8_X3_w1_p1_k1',
         ]
 # mainpath = Path('/Users/saadjansari/Documents/Projects/alenalysis')
 # sim_names = [
@@ -37,16 +50,16 @@ for sim_name in sim_names:
     
     # Read sim into FilamentData and CrosslinkerData
     FData, XData = read_sim(simpath, sim_name[0])
-    import pickle
-    with open( simpath / 'FData.pickle', 'wb') as f:
-        pickle.dump(FData,f)
+    # import pickle
+    # with open( simpath / 'FData.pickle', 'wb') as f:
+        # pickle.dump(FData,f)
 
-    # # Plot Trajectories
+    # Plot Trajectories
     # FData.plot_trajectories(savepath / 'traj_filament.pdf')
     # XData.plot_trajectories(savepath / 'traj_xlink.pdf')
 
-    # # Analysis things
-    # # 1. Number of crosslinkers per filament
+    # Analysis things
+    # 1. Number of crosslinkers per filament
     # PlotStateCounts(FData, XData, savepath / 'xlink_states.pdf')
     # PlotXlinkPerFilamentVsTime( FData, XData, savepath / 'xlinks_per_fil_img.pdf')
     # PlotXlinkPerFilament( FData, XData, savepath / 'xlinks_per_fil_hist.pdf')
@@ -77,6 +90,16 @@ for sim_name in sim_names:
     # 6. Dynamics
     # PlotMSD(FData, savepath / 'msd.pdf')
 
-    # 7. Structure
-    PlotRDF(FData, savepath / 'rdf.pdf', rcutoff=1.0)
-    PlotRDF(FData, savepath / 'rdf_shortrange.pdf', rcutoff=0.1)
+    # # 7. Structure
+    # PlotRDF(FData, savepath / 'rdf.pdf', rcutoff=1.0)
+    # PlotRDF(FData, savepath / 'rdf_shortrange.pdf', rcutoff=0.1)
+    # PlotFilamentDensityLastNframes(FData, savepath / 'filament_density.pdf')
+    # PlotFilamentDensityMovie(FData, savepath / 'density_movie', frame_gap=1)
+    # PlotPackingFraction(FData, savepath / 'map_packing_fraction.pdf')
+    # PlotSOrder(FData, savepath / 'map_nematic_order.pdf')
+    # PlotPOrder(FData, savepath / 'map_polar_order.pdf')
+    # PlotFlux(FData, savepath / 'map_flux.pdf')
+
+    # Mobility
+    # PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
+    PlotFilamentCondensation(FData, XData, savepath / 'condensed_ratio.pdf')
