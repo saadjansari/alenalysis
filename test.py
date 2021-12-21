@@ -1,6 +1,7 @@
 import numpy as np
 import os, pdb 
 from pathlib import Path
+import h5py
 from DataHandler import FilamentSeries, CrosslinkerSeries
 from read_config import *
 from read_files import *
@@ -11,48 +12,64 @@ from CalcOverlaps import *
 from CalcMSD import *
 # from CalcRDF import *
 # from CalcDensityMaps import *
-from CalcLocalMaps import *
-from CalcCondensation import *
-from CalcCondensation import *
+from local_order.CalcLocalMaps import *
+from CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClusters
+from CalcCondensationXlinks import PlotXlinkClusters
 from CalcMobility import *
+import pickle
+
+attemptFastLoad = True
+attemptFastSave = True
 
 # Define sims to analyze
-mainpath = Path('/Users/saadjansari/Documents/Projects/Results/SampleConf/Fig3')
+mainpath = Path('/Users/saadjansari/Documents/Projects/Results/SampleConf/Fig2')
 sim_names = [
-        # 'tactoid_vol_exclusion/test',
-        # 'tactoid_vol_exclusion/test_lambda0',
-        # 'length150_nosteric',
-        # 'Usteric/U1.6',
-        # 'Usteric/U3.2',
-        # 'Usteric/U6.4'
-        # 'C1_PF8_X3_w1_p1_k1',
-        # 'C2_PF8_X3_w1_p1_k1',
-        'C3_PF8_X1_w1_p1_k1',
-        'C3_PF8_X2_w1_p1_k1',
+        'C1_PF8_X3_w1_p1_k1',
+        'C2_PF8_X3_w1_p1_k1',
         'C3_PF8_X3_w1_p1_k1',
-        'C3_PF8_X4_w1_p1_k1',
         # 'P1_PF8_X3_w1_p1_k1',
         # 'P2_PF8_X3_w1_p1_k1',
         # 'P3_PF8_X3_w1_p1_k1',
+        # 'S1_PF8_X3_w1_p1_k1',
+        # 'S2_PF8_X3_w1_p1_k1',
+        # 'S3_PF8_X3_w1_p1_k1',
         ]
-# mainpath = Path('/Users/saadjansari/Documents/Projects/alenalysis')
-# sim_names = [
-        # 'test_sim'
-        # ]
 
 for sim_name in sim_names:
     simpath = mainpath / sim_name
     savepath = simpath / 'plots'
     if not Path.exists(savepath):
         os.mkdir(savepath)
+        
+    # analysis data h5py
+    h5path = simpath / 'data.hdf5'
+    if Path.exists(h5path):
+        os.system('rm {0}'.format(str(h5path)) )
+    data_filestream = h5py.File(h5path, "w")
 
-    print('Sim: {0}'.format(sim_name))
+    # paths
+    params = {
+            'sim_name': sim_name,
+            'sim_path': simpath,
+            'plot_path': savepath,
+            'data_path': h5path,
+            'data_filestream': data_filestream,
+            }
+
+    print('_'*50)
+    print('\nSim Name : {0}'.format(sim_name))
     
-    # Read sim into FilamentData and CrosslinkerData
-    FData, XData = read_sim(simpath, sim_name[0])
-    # import pickle
-    # with open( simpath / 'FData.pickle', 'wb') as f:
-        # pickle.dump(FData,f)
+    # Read sim into FilamentData and CrosslinkerData {{{
+    fastpath = simpath / 'FXdata.pickle'
+    if attemptFastLoad and Path.exists(fastpath):
+        with open(fastpath, "rb") as fp:
+            FData, XData = pickle.load(fp)
+    else:
+        FData, XData = read_sim(simpath, sim_name[0])
+        if attemptFastSave:
+            with open(fastpath, "wb") as fp:
+                pickle.dump([FData, XData], fp)
+    # }}}
 
     # Plot Trajectories
     # FData.plot_trajectories(savepath / 'traj_filament.pdf')
@@ -99,7 +116,15 @@ for sim_name in sim_names:
     # PlotSOrder(FData, savepath / 'map_nematic_order.pdf')
     # PlotPOrder(FData, savepath / 'map_polar_order.pdf')
     # PlotFlux(FData, savepath / 'map_flux.pdf')
+    # PlotOrientation(FData, savepath / 'map_orientation.pdf')
+    # PlotNematicDirector(FData, savepath / 'map_nematic_director.pdf')
 
     # Mobility
     # PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
-    PlotFilamentCondensation(FData, XData, savepath / 'condensed_ratio.pdf')
+
+    # Filament Condensation / Clustering
+    PlotFilamentCondensation(FData, XData, params)
+    PlotFilamentClusters(FData, params)
+
+    # Crosslinker Clusters
+    PlotXlinkClusters(XData, params)
