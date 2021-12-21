@@ -3,7 +3,7 @@ import numba as nb
 from random import sample
 import matplotlib.pyplot as plt
 import pdb
-import vtk
+# import vtk
 from unfold_trajectories import *
 from CalcOrderParametersLocal import * 
 from CalcPackingFraction import * 

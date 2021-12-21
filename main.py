@@ -20,7 +20,7 @@ attemptFastLoad = False
 attemptFastSave = False
 
 # Define sims to analyze
-mainpath = Path('/Users/saadjansari/Documents/Projects/Results/SampleConf/Fig2')
+mainpath = Path('/scratch/summit/saan8193/alens/conf_scan/sims')
 sim_names = [
         'C1_PF4_X1_w1_p1_k1',
         'C2_PF4_X1_w1_p1_k1',

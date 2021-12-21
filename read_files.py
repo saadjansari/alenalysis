@@ -3,7 +3,7 @@ import pdb
 from pathlib import Path
 from DataHandler import FilamentSeries, CrosslinkerSeries
 from read_config import *
-import vtk
+# import vtk
 
 
 def read_sim(spath, conf='U'):
