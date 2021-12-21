@@ -2,3 +2,4 @@ test_sim
 __pycache__
 archive
 tests
+.DS_Store

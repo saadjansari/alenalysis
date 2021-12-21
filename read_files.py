@@ -10,7 +10,7 @@ def read_sim(spath, conf='U'):
     # Read Simulation into Series
 
     # read config files
-    print('   Reading yaml config...')
+    # print('\tReading yaml file...')
     # box_size = get_boxsize_confined(spath, conf)
     # time_snap = get_timeSnap(spath)
     # kappa = get_spring_constant(spath, idx=0)
@@ -22,7 +22,7 @@ def read_sim(spath, conf='U'):
 
     # find data files of sim
     files_sylinder, files_protein, files_constraint = find_all_frames(spath / 'result')
-    print('   Reading {0} frames...'.format(len(files_sylinder)))
+    print('Reading {0} frames...'.format(len(files_sylinder)))
    
     # Read all files, and
     # Instantiate handler objects
@@ -73,6 +73,10 @@ def read_all_sylinder(file_list):
         pos_minus[:,:,idx] = df[2]
         pos_plus[:,:,idx] = df[3]
         orientation[:,:,idx] = df[4]
+        print('############ Reading Sylinder File = {0}/{1} ({2:.0f}%) ############'.format(
+            1+idx,
+            len(file_list), 
+            100*(1+idx)/len(file_list)), end='\r',flush=True)
 
     return pos_minus, pos_plus, orientation, gid
 
@@ -93,6 +97,10 @@ def read_all_protein(file_list):
         pos_end[:,:,idx] = df[2]
         link0[:,idx] = df[3]
         link1[:,idx] = df[4]
+        print('############ Reading Protein File = {0}/{1} ({2:.0f}%) ############'.format(
+            1+idx,
+            len(file_list), 
+            100*(1+idx)/len(file_list)), end='\r',flush=True)
 
     return gid,pos_start,pos_end,link0,link1
 
