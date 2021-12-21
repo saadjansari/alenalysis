@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import decorators
 import pdb
+from scipy.ndimage import convolve as conv
 
 
 def PlotMobilityFilamentVsTime( FData, savepath):
@@ -41,7 +42,7 @@ def calc_mobility(pos,windowSize=10):
     for jfil in np.arange(nfil):
         pos_unfolded = pos[:,jfil,:]
         pos2 = np.linalg.norm( np.diff(pos_unfolded, axis=1), axis=0)
-        cumDisp[jfil,1:] = np.convolve(pos2, convKernel, 'same')
+        cumDisp[jfil,1:] = conv(pos2, convKernel, mode='nearest')
     cumDisp[:,0] = cumDisp[:,1]
     return cumDisp
 

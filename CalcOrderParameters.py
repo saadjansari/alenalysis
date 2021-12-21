@@ -103,8 +103,8 @@ def calc_nematic_order(orient_array):
 
     # Number of frames 
     n_frames = orient_array.shape[2]
-    
     S = np.zeros(n_frames)
+
     for jframe in np.arange(n_frames):
 
         # calculate Q tensor
@@ -197,3 +197,23 @@ def calc_z_ordering( orient_array):
     Zorder = np.sum( np.absolute(orient_order), axis=0) / n_fil
     
     return Zorder
+
+def calc_nematic_order_xyz(orient_array):
+    """
+    Calculates the nematic order S in xyz directions 
+    Inputs: 
+        orient_array : 3 x N x T (where N is number of filaments, T is number of frames)
+    """
+
+    # Number of frames 
+    n_frames = orient_array.shape[2]
+    S = np.zeros((3,n_frames))
+
+    for jframe in np.arange(n_frames):
+        ort = orient_array[:,:,jframe]
+
+        for jdim in range(3):
+            cos_angle_sq = ort[jdim,:]**2
+            S[jdim,jframe] = 0.5*np.mean( 3*cos_angle_sq - 1)
+        
+    return S
