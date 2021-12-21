@@ -5,7 +5,7 @@ import pdb
 def get_config(spath):
     # Read and store useful configuration values from RunConfig and ProteinConfig.yaml
     print('Configuration :') 
-    print('--------------\n') 
+    # print('--------------\n') 
     config = {}
     config['geometry'] = get_confining_geometry(spath)
     config['box_size'] = get_boxsize_confined(spath, config['geometry']['type'])
@@ -16,7 +16,7 @@ def get_config(spath):
     config['kT'] = get_kT(spath)
     config['kappa'] = get_spring_constant(spath)
     config['rest_length'] = get_rest_length(spath)
-    print('--------------\n') 
+    # print('--------------\n') 
     return config
 
 def get_boxsize(spath):
