@@ -32,7 +32,7 @@ def PlotPackingFraction(FData, savepath, N=20, **kwargs):
     rho = rho/len(frames)
 
     # Plot
-    densityMap.PlotTest(rho, 'Packing Fraction', savepath, vmin=0, vmax=0.20, **kwargs)
+    densityMap.PlotTest(rho, 'Packing Fraction', savepath, vmin=0, vmax=0.50, **kwargs)
     
 
 def PlotSOrder(FData, savepath, N=5, **kwargs):
@@ -102,6 +102,52 @@ def PlotFlux(FData, savepath, N=5, **kwargs):
     # Plot
     densityMap.PlotTest(Flux, 'Flux', savepath, **kwargs)
 
+def PlotOrientation(FData, savepath, N=1, **kwargs):
+    """ Plot the Orientation for the last N frames"""
+    
+    print('Orientation Local Map...') 
+
+    # Get last N frames
+    frames = np.arange(FData.nframe_-N,FData.nframe_)
+
+    # Initialize map
+    densityMap = LocalMap(FData.config_, rad_scaling=2.0)
+
+    # orientation
+    ort = 0*densityMap.ComputeOrientation(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1], FData.orientation_[:,:,-1])
+    ort = 0*densityMap.ComputeSdirector(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1], FData.orientation_[:,:,-1])
+    pdb.set_trace()
+
+    # Loop over frames
+    for jframe in frames:
+        ort += densityMap.ComputeOrientation(FData.pos_minus_[:,:,jframe], FData.pos_plus_[:,:,jframe], FData.orientation_[:,:,jframe])
+    ort = ort/len(frames)
+
+    # Plot
+    densityMap.PlotOrientation(ort, savepath, **kwargs)
+
+def PlotNematicDirector(FData, savepath, N=1, **kwargs):
+    """ Plot the Nematic Director for the last N frames"""
+    
+    print('Nematic Director Local Map...') 
+
+    # Get last N frames
+    frames = np.arange(FData.nframe_-N,FData.nframe_)
+
+    # Initialize map
+    densityMap = LocalMap(FData.config_, rad_scaling=3.0)
+
+    # orientation
+    ort = 0*densityMap.ComputeSdirector(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1], FData.orientation_[:,:,-1])
+
+    # Loop over frames
+    for jframe in frames:
+        ort += densityMap.ComputeSdirector(FData.pos_minus_[:,:,jframe], FData.pos_plus_[:,:,jframe], FData.orientation_[:,:,jframe])
+    ort = ort/len(frames)
+
+    # Plot
+    densityMap.PlotNematicDirector(ort, savepath, **kwargs)
+
 # LocalMap {{{
 class LocalMap():
     # Class for computing local spatial maps in a variety of geometries.
@@ -121,8 +167,8 @@ class LocalMap():
 
         # Special region
         self.zoom_cyl = True
-        self.z_low = 20.5
-        self.z_high = 22.5
+        self.z_low = 21
+        self.z_high = 22
         # self.z_low = -0.25
         # self.z_high = 1.75 
         # self.z_low = -0.25
@@ -261,6 +307,102 @@ class LocalMap():
         return P
     # }}}
 
+    # Compute Local Orientation {{{
+    def ComputeOrientation( self, pos_minus, pos_plus, orient):
+        """
+        Calculate the local orientation for single time frame
+        """
+
+        # search radius
+        rad = self.search_radius_
+
+        # sample points
+        xv,yv,zv = self.GetSamplePoints()
+        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+
+        # Get Sample Positions and Volumes
+        pos_sample,_,_ = self.SampleFilamentLength(pos_plus, pos_minus)
+        pos_sample = self.apply_PBC(pos_sample)
+
+        # Expand orient array
+        orient_sample = np.repeat( orient, pos_sample.shape[1]/pos_plus.shape[1], axis=1)
+
+        # Initialize cKDtree
+        kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
+       
+        # Initiliaze 
+        ort = np.zeros((xv.shape[0], xv.shape[1], xv.shape[2], 3))
+
+        # Loop over sample points
+        for jx in np.arange(xv.shape[0]):
+            for jy in np.arange(xv.shape[1]):
+                for jz in np.arange(xv.shape[2]):
+
+                    pos_c = np.array([xv[jx,jy,jz],yv[jx,jy,jz],zv[jx,jy,jz]])
+                    neighbors = kdtree.query_ball_point( pos_c, r=rad)
+
+                    # Calculate nematic order of neighbors
+                    if len(neighbors) > 8:
+                        sub_ort_array = orient_sample[:,neighbors]
+
+                        # orientation
+                        mean_ort = np.mean(sub_ort_array,axis=1)
+                        mean_ort = mean_ort / np.linalg.norm(mean_ort)
+                        # costheta_x = np.cos(np.arctan2(mean_ort[1], mean_ort[0]))
+                        # cosphi_z = mean_ort[-1]
+                        # ort[jx,jy,jz,:] = [costheta_x,cosphi_z]
+                        ort[jx,jy,jz,:] = mean_ort
+
+                    else:
+                        ort[jx,jy,jz,:] = [np.nan,np.nan, np.nan]
+
+        return ort
+    # }}}
+
+    # Compute Nematic Director {{{
+    def ComputeSdirector( self, pos_minus, pos_plus, orient):
+        """
+        Calculate the nematic director for single time frame
+        """
+
+        # search radius
+        rad = self.search_radius_
+
+        # sample points
+        xv,yv,zv = self.GetSamplePoints()
+        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+
+        # Get Sample Positions and Volumes
+        pos_sample,_,_ = self.SampleFilamentLength(pos_plus, pos_minus)
+        pos_sample = self.apply_PBC(pos_sample)
+
+        # Expand orient array
+        orient_sample = np.repeat( orient, pos_sample.shape[1]/pos_plus.shape[1], axis=1)
+
+        # Initialize cKDtree
+        kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
+       
+        # INitiliaze nematic 
+        N = np.zeros( (xv.shape[0], xv.shape[1], xv.shape[2], 3) )
+
+        # Loop over sample points
+        for jx in np.arange(xv.shape[0]):
+            for jy in np.arange(xv.shape[1]):
+                for jz in np.arange(xv.shape[2]):
+
+                    pos_c = np.array([xv[jx,jy,jz],yv[jx,jy,jz],zv[jx,jy,jz]])
+                    neighbors = kdtree.query_ball_point( pos_c, r=rad)
+
+                    # Calculate nematic order of neighbors
+                    if len(neighbors) > 8:
+                        sub_ort_array = orient_sample[:,neighbors]
+
+                        # nematic order
+                        N[jx,jy,jz,:] = calc_nematic_director(sub_ort_array)
+
+        return N
+    # }}}
+
     # Compute Flux {{{
     def ComputeFlux( self, pos_minus, pos_plus, orient):
         """
@@ -342,7 +484,7 @@ class LocalMap():
         # Points will sample a 3D rectangular region for each geometry
 
         # Point spacing
-        width = self.diameter_
+        width = 2*self.diameter_
 
         # Get lower and upper bound for rectangular region
         if self.confinement_ == 'unconfined':
@@ -698,6 +840,102 @@ class LocalMap():
         plt.savefig(savepath, bbox_inches="tight")
         plt.close()
         # }}}
+
+    # PlotOrientation {{{
+    def PlotOrientation(self, data, savepath, **kwargs):
+
+
+        label = ['Theta (rad)', 'Phi (rad)']
+        # sample points
+        xv,yv,zv = self.GetSamplePoints()
+
+        # colormap
+        colormap = ['hsv', 'RdYlBu_r']
+        
+        # colormap range
+        vmin = [0,0]
+        vmax = [2*np.pi,np.pi]
+        
+        # edges
+        xe = np.around([np.min(xv.flatten()), np.max(xv.flatten())],2)
+        ye = np.around([np.min(yv.flatten()), np.max(yv.flatten())],2)
+        ze = np.around([np.min(zv.flatten()), np.max(zv.flatten())],2)
+
+        # 2D histograms (XY,XZ,YZ)
+        fig,axs = plt.subplots(2,3, figsize=(12,7))
+
+        for jrow in range(2):
+            
+            vlow = vmin[jrow]
+            vhigh = vmax[jrow]
+            cmap = colormap[jrow]
+            
+            # XY
+            datXY = np.nanmean(data,axis=2)
+            if jrow == 0:
+                angle = np.mod( np.arctan2(datXY[:,:,1], datXY[:,:,0]).transpose(), 2*np.pi)
+            elif jrow == 1:
+                angle = np.arccos(datXY[:,:,2]).transpose()
+
+            im0 = axs[jrow,0].imshow(angle, 
+                    cmap=cmap, interpolation='nearest', 
+                    origin='lower', vmin=vlow, vmax=vhigh,
+                    extent=( xe[0], xe[1], ye[0], ye[1]) )
+            cb = plt.colorbar(im0, ax=axs[jrow,0], label=label[jrow])
+            axs[jrow,0].set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$')
+            axs[jrow,0].set_xticks(xe)
+            axs[jrow,0].set_yticks(ye)
+        
+            # XZ
+            datXZ = np.nanmean(data,axis=1)
+            if jrow == 0:
+                angle = np.mod( np.arctan2(datXZ[:,:,1], datXZ[:,:,0]).transpose(), 2*np.pi)
+            elif jrow == 1:
+                angle = np.arccos(datXZ[:,:,2]).transpose()
+            im1 = axs[jrow,1].imshow(angle, 
+                    cmap=cmap, interpolation='nearest', 
+                    origin='lower', vmin=vlow, vmax=vhigh,
+                    extent=( xe[0], xe[1], ze[0], ze[1]) )
+            plt.colorbar(im1, ax=axs[jrow,1], label=label[jrow])
+            axs[jrow,1].set(xlabel=r'$X (\mu m)$', ylabel=r'$Z (\mu m)$')
+            axs[jrow,1].set_xticks(xe)
+            axs[jrow,1].set_yticks(ze)
+
+            # YZ
+            datYZ = np.nanmean(data,axis=0)
+            if jrow == 0:
+                angle = np.mod( np.arctan2(datYZ[:,:,1], datYZ[:,:,0]).transpose(), 2*np.pi)
+            elif jrow == 1:
+                angle = np.arccos(datYZ[:,:,2]).transpose()
+            im2 = axs[jrow,2].imshow(angle, 
+                    cmap=cmap, interpolation='nearest',
+                    origin='lower', vmin=vlow, vmax=vhigh,
+                    extent=( ye[0], ye[1], ze[0], ze[1]) )
+            plt.colorbar(im2, ax=axs[jrow,2], label=label[jrow])
+            axs[jrow,2].set(xlabel=r'$Y (\mu m)$', ylabel=r'$Z (\mu m)$')
+            axs[jrow,2].set_xticks(ye)
+            axs[jrow,2].set_yticks(ze)
+
+        plt.tight_layout()
+        plt.savefig(savepath, bbox_inches="tight")
+        plt.close()
+        # }}}
+        
+    # PlotNematicDirector {{{
+    def PlotNematicDirector(self, data, savepath, **kwargs):
+
+        # sample points
+        xv,yv,zv = self.GetSamplePoints()
+
+        ax = plt.figure(figsize=(4,8)).add_subplot(projection='3d')
+        ax.quiver(xv, yv, zv, data[:,:,:,0], data[:,:,:,1], data[:,:,:,2], pivot='middle', length=0.03)
+        ax.set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$', zlabel=r'$Z (\mu m)$')
+        plt.tight_layout()
+        ax.set_box_aspect((1, 1, 1))
+        plt.show()
+        plt.savefig(savepath, bbox_inches="tight")
+        plt.close()
+        # }}}
 # }}}
 
 # Order Params {{{
@@ -715,6 +953,30 @@ def calc_nematic_order(orient_array):
     # Find largest eigenvalue
     S = np.sqrt(np.tensordot(Q, Q)*1.5)
     return S
+
+def calc_nematic_director(orient_array):
+    """
+    Calculates the nematic director N by computing the eigenvector correpsinding to the maximum eigenvalue
+    of the nematic tensor Q
+    Inputs: 
+        orient_array : 3 x N (where N is number of filaments, T is number of frames)
+    """
+
+    # calculate Q tensor
+    Q = 1.5*calc_nematic_tensor(orient_array)
+
+    # Find largest eigenvalue
+    vals, vecs = np.linalg.eig(Q)
+
+    # Find the index of the maximum eigenvalue (absolute magnitude)
+    idxMax = np.where( np.abs(vals) == np.max(np.abs(vals)))[0][0]
+    
+    # eigenvector
+    if vals[idxMax] < 0:
+        ev = -vecs[:,idxMax]
+    else:
+        ev = vecs[:,idxMax]
+    return ev
 
 @njit
 def calc_nematic_tensor( orient_array):
