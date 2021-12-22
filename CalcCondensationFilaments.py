@@ -301,8 +301,10 @@ def condensed_msd_diffusion(pos, labels, N=100, dt=1, save=False, savepath=None,
     # MSD
     timeArray = dt * np.arange(N)
     MSD = calc_msd_fft( pos_condensed)
-    slopes = np.diff( np.mean(MSD,axis=0) ) / np.diff( timeArray)
-    print('MSD slope (median) = {0:.4f}'.format( np.median(slopes)))
+    slopes_mu = np.diff( np.mean(MSD,axis=0) ) / np.diff( timeArray)
+    slopes_sem = np.diff( np.std(MSD,axis=0)/np.sqrt(MSD.shape[0]) ) / np.diff( timeArray)
+    slope_middle = np.array([ slopes_mu[int( len(slopes_mu)/2 ) ], slopes_sem[int( len(slopes_sem)/2 ) ] ])
+    print('MSD slope (center) = {0:.5f} +- {1:.5f} {2}'.format(slope_middle[0], slope_middle[1], r'$\mu m^2 s^{-1}$' ))
 
     # Plotting
     fig,ax = plt.subplots()
@@ -321,5 +323,6 @@ def condensed_msd_diffusion(pos, labels, N=100, dt=1, save=False, savepath=None,
 
     if datapath is not None:
         # save ratio to h5py
-        datapath.create_dataset('filament/condensed_msd_slope', data=np.median(slopes), dtype='f')
+        pdb.set_trace()
+        datapath.create_dataset('filament/condensed_msd_slope', data=slope_middle, dtype='f')
 
