@@ -165,3 +165,6 @@ for sim_name in sim_names:
 
     # Crosslinker Clusters
     PlotXlinkClusters(XData, params)
+
+    # Close data file
+    data_filestream.close()
