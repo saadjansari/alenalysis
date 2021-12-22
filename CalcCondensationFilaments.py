@@ -11,6 +11,8 @@ from sklearn.cluster import KMeans, DBSCAN
 import seaborn as sns
 from CalcOrderParameters import calc_nematic_tensor
 from CalcMSD import calc_msd_fft
+from scipy.spatial.distance import pdist, squareform
+
 
 def PlotFilamentCondensation(FData, XData, params):
     """ Plot the filament condensation """
@@ -42,11 +44,11 @@ def PlotFilamentClusters(FData, params, N=10):
     # Filament plus-end clusters
     print('Filaments plus-end clusters...') 
     pos = FData.pos_plus_
-    labels = cluster_via_dbscan(pos[:,:,frames],
+    labels = cluster_via_dbscan(pos[:,:,frames], FData.config_['box_size'],
             save=True, savepath=params['plot_path'] / 'cluster_filament_dbscan.pdf')
 
     # Shape analysis
-    cluster_shape_analysis_extent(pos[:,:,frames], labels, 
+    cluster_shape_analysis_extent(pos[:,:,frames], labels, FData.config_['box_size'],
             save=True, savepath=params['plot_path'] / 'cluster_filament_extent.pdf',
             datapath=params['data_filestream'])
     
@@ -147,10 +149,11 @@ def PlotRatioCondensedFilaments(ratio, savepath):
     plt.close()
 
 
-def cluster_via_dbscan(pos_all, savepath=None, save=False):
+def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
     """ cluster using dbscan """
 
-    min_cluster_size = 10 
+    min_biggest_cluster_size = 10 
+    min_smallest_cluster_ratio = 0.2 
     eps = 0.05 # min neighbor distance for identification of cores
     min_samples = 6 # min size of core
 
@@ -166,8 +169,11 @@ def cluster_via_dbscan(pos_all, savepath=None, save=False):
         pos = pos_all[:,:,jframe]
         X = pos[:,:].transpose()
 
+        # Get distances PBC
+        X = pdist_pbc(X,box_size)
+
         # Compute DBSCAN
-        db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
+        db = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed').fit(X)
         labels = db.labels_
 
         # Number of clusters in labels, ignoring noise if present.
@@ -175,7 +181,12 @@ def cluster_via_dbscan(pos_all, savepath=None, save=False):
         size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
         # Only keep clusters with min_size
         for jc in range(n_clusters_):
-            if size_cluster[jc] < min_cluster_size:
+            if size_cluster[jc] < min_biggest_cluster_size:
+                labels[labels==jc] = -1 # assign as noise
+        # Toss clusters that are too small compared to biggest cluster
+        min_size = min_smallest_cluster_ratio*np.max(size_cluster)
+        for jc in range(n_clusters_):
+            if size_cluster[jc] < min_size:
                 labels[labels==jc] = -1 # assign as noise
 
         # Change cluster labels
@@ -184,6 +195,9 @@ def cluster_via_dbscan(pos_all, savepath=None, save=False):
                 labels[ labels==c_label] = idx
             
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        # if n_clusters_ > 1:
+            # pdb.set_trace()
+            # print('whoops')
         size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
         n_noise_ = list(labels).count(-1)
         print("Estimated number of clusters: %d" % n_clusters_)
@@ -215,7 +229,7 @@ def cluster_via_dbscan(pos_all, savepath=None, save=False):
     plt.close()
     return labels_all
 
-def cluster_shape_analysis_extent(pos, labels, savepath=None, save=False, datapath=None):
+def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=False, datapath=None):
     """ cluster shape analysis extent """
 
     # frames
@@ -228,9 +242,11 @@ def cluster_shape_analysis_extent(pos, labels, savepath=None, save=False, datapa
     for jframe in frames:
         n_clusters_ = len(set(labels[:,jframe])) - (1 if -1 in labels else 0)
         for jc in range(n_clusters_):
-            stdX.append( np.ptp( pos[0,labels[:,jframe]==jc,jframe]) )
-            stdY.append( np.ptp( pos[1,labels[:,jframe]==jc,jframe]) )
-            stdZ.append( np.ptp( pos[2,labels[:,jframe]==jc,jframe]) )
+            cpos = pos[:,labels[:,jframe]==jc, jframe]
+            xyz_max = pdist_pbc_xyz_max(cpos.transpose(), box_size)
+            stdX.append( xyz_max[0])
+            stdY.append( xyz_max[1])
+            stdZ.append( xyz_max[2])
     std = np.zeros((3,len(stdX)))
     std[0,:] = stdX
     std[1,:] = stdY
@@ -323,6 +339,26 @@ def condensed_msd_diffusion(pos, labels, N=100, dt=1, save=False, savepath=None,
 
     if datapath is not None:
         # save ratio to h5py
-        pdb.set_trace()
         datapath.create_dataset('filament/condensed_msd_slope', data=slope_middle, dtype='f')
+
+def pdist_pbc(pos, box_size):
+    """ pos is dimension N x 3 """
+    for jd in range(pos.shape[1]):
+        pd = pdist(pos[:,jd].reshape(-1,1))
+        pd[ pd > 0.5*box_size[jd] ] -= box_size[jd]
+        try:
+            total += pd**2
+        except:
+            total = pd**2
+    total = squareform( np.sqrt(total) )
+    return total
+
+def pdist_pbc_xyz_max(pos, box_size):
+    """ pos is dimension N x 3 """
+    dist_xyz = np.zeros(3)
+    for jd in range(pos.shape[1]):
+        pd = pdist(pos[:,jd].reshape(-1,1))
+        pd[ pd > 0.5*box_size[jd] ] -= box_size[jd]
+        dist_xyz[jd] = np.max( np.abs(pd) )
+    return dist_xyz 
 
