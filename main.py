@@ -15,9 +15,11 @@ from CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClus
 from CalcCondensationXlinks import PlotXlinkClusters
 from CalcMobility import *
 import pickle
+import gc
 
-attemptFastLoad = False
-attemptFastSave = False
+attemptFastLoad = True
+attemptFastSave = True
+gc.collect()
 
 # Define sims to analyze
 mainpath = Path('/scratch/summit/saan8193/alens/conf_scan/sims')
@@ -168,3 +170,7 @@ for sim_name in sim_names:
 
     # Close data file
     data_filestream.close()
+    
+    # delete variables
+    del FData
+    del XData
