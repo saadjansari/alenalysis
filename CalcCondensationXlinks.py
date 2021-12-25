@@ -7,8 +7,9 @@ from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 from CalcCondensationFilaments import pdist_pbc, pdist_pbc_xyz_max
+from calc_gyration_tensor import calc_gyration_tensor3d_pbc
 
-def PlotXlinkClusters(XData, params, N=10):
+def PlotXlinkClusters(XData, params, N=50):
     """ Plot the xlinker clusters"""
     
     # Get last N frames
@@ -21,6 +22,8 @@ def PlotXlinkClusters(XData, params, N=10):
             save=True, savepath=params['plot_path'] / 'cluster_xlinker_dbscan.pdf')
 
     # Shape analysis
+    cluster_shape_analysis(pos_com[:,:,frames], labels, XData.config_['box_size'],
+            datapath=params['data_filestream'])
     cluster_shape_analysis_extent(pos_com[:,:,frames], labels, XData.config_['box_size'],
             save=True, savepath=params['plot_path'] / 'cluster_xlinker_extent.pdf',
             datapath=params['data_filestream'])
@@ -68,8 +71,8 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
         size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
         n_noise_ = list(labels).count(-1)
-        print("Estimated number of clusters: %d" % n_clusters_)
-        print("Estimated number of noise points: %d" % n_noise_)
+        # print("Estimated number of clusters: %d" % n_clusters_)
+        # print("Estimated number of noise points: %d" % n_noise_)
 
         labels_all[:,jframe] = labels
         
@@ -127,8 +130,9 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
     if save:
         colors = sns.color_palette("husl", 3)
         fig,ax = plt.subplots()
+        bins = np.linspace(0,np.max(std.flatten()),13)
         for jd in range(3):
-            ax.hist( std[jd,:], 12, color=colors[jd], label=dims[jd], alpha=0.7)
+            ax.hist( std[jd,:], bins, color=colors[jd], label=dims[jd], alpha=0.4)
         ax.legend()
         ax.set(xlabel=r'XYZ ($\mu m$)',ylabel='Count')
         plt.tight_layout()
@@ -138,3 +142,30 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
         # save ratio to h5py
         datapath.create_dataset('xlinker/cluster_extent_xyz', data=std, dtype='f')
     return labels
+
+def cluster_shape_analysis(pos, labels, box_size, datapath=None):
+    """ cluster shape analysis """
+
+    # frames
+    frames = np.arange(pos.shape[2])
+
+    # Find shape parameters
+    rg2 = []
+    asphericity = []
+    acylindricity = []
+    anisotropy = []
+    for jframe in frames:
+        n_clusters_ = len(set(labels[:,jframe])) - (1 if -1 in labels else 0)
+        for jc in range(n_clusters_):
+            cpos = pos[:,labels[:,jframe]==jc, jframe]
+            _,G_data = calc_gyration_tensor3d_pbc(cpos.transpose(), box_size)
+            asphericity.append( G_data["asphericity"])
+            acylindricity.append( G_data["acylindricity"])
+            anisotropy.append( G_data["shape_anisotropy"])
+            rg2.append( G_data["Rg2"])
+    
+    if datapath is not None:
+        datapath.create_dataset('xlinker/asphericity', data=asphericity, dtype='f')
+        datapath.create_dataset('xlinker/acylindricity', data=acylindricity, dtype='f')
+        datapath.create_dataset('xlinker/anisotropy', data=anisotropy, dtype='f')
+        datapath.create_dataset('xlinker/rg2', data=rg2, dtype='f')

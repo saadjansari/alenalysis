@@ -1,4 +1,5 @@
 from numba import njit
+import decorators
 import numpy as np
 from matplotlib import pyplot as plt
 import decorators
@@ -12,7 +13,8 @@ import seaborn as sns
 from CalcOrderParameters import calc_nematic_tensor
 from CalcMSD import calc_msd_fft
 from scipy.spatial.distance import pdist, squareform
-
+from calc_gyration_tensor import calc_gyration_tensor3d_pbc
+from CalcPackingFraction import calc_local_packing_fraction_frame
 
 def PlotFilamentCondensation(FData, XData, params):
     """ Plot the filament condensation """
@@ -32,10 +34,20 @@ def PlotFilamentCondensation(FData, XData, params):
             savepath=params['plot_path'] / 'condensed_filament_msd.pdf',
             datapath=params['data_filestream'])
 
+    # Condensed/Vapor PF
+    packing_fraction( 
+            FData.pos_minus_[:,:,-1],
+            FData.pos_plus_[:,:,-1],
+            FData.config_,
+            labels,
+            save=True,
+            savepath=params['plot_path'] / 'filaments_pf.pdf',
+            datapath=params['data_filestream'])
+            
     # # Plot time averaged label
     # PlotTimeAvgLabelHist(labels, params['plot_path'] / 'condensed_filament_time_avg_label.pdf')
 
-def PlotFilamentClusters(FData, params, N=10):
+def PlotFilamentClusters(FData, params, N=50):
     """ Plot the filament plus-end clusters """
     
     # Get last N frames
@@ -48,6 +60,8 @@ def PlotFilamentClusters(FData, params, N=10):
             save=True, savepath=params['plot_path'] / 'cluster_filament_dbscan.pdf')
 
     # Shape analysis
+    cluster_shape_analysis(pos[:,:,frames], labels, FData.config_['box_size'],
+            datapath=params['data_filestream'])
     cluster_shape_analysis_extent(pos[:,:,frames], labels, FData.config_['box_size'],
             save=True, savepath=params['plot_path'] / 'cluster_filament_extent.pdf',
             datapath=params['data_filestream'])
@@ -78,7 +92,7 @@ def condensed_via_xlinks_and_mobility(XData, FData, savepath=None, save=False, d
     # Clustering: kmeans 
     n_clusters = 2
     X_std = StandardScaler().fit_transform(data)
-    print('KMeans clustering: N_clusters = {}'.format(n_clusters))
+    # print('KMeans clustering: N_clusters = {}'.format(n_clusters))
     kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(X_std)
     labels = kmeans.labels_
     
@@ -200,8 +214,8 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
             # print('whoops')
         size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
         n_noise_ = list(labels).count(-1)
-        print("Estimated number of clusters: %d" % n_clusters_)
-        print("Estimated number of noise points: %d" % n_noise_)
+        # print("Estimated number of clusters: %d" % n_clusters_)
+        # print("Estimated number of noise points: %d" % n_noise_)
 
         labels_all[:,jframe] = labels
         
@@ -259,8 +273,9 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
     if save:
         colors = sns.color_palette("husl", 3)
         fig,ax = plt.subplots()
+        bins = np.linspace(0,np.max(std.flatten()),13)
         for jd in range(3):
-            ax.hist( std[jd,:], 12, color=colors[jd], label=dims[jd], alpha=0.7)
+            ax.hist( std[jd,:], bins, color=colors[jd], label=dims[jd], alpha=0.4)
         ax.legend()
         ax.set(xlabel=r'XYZ ($\mu m$)',ylabel='Count')
         plt.tight_layout()
@@ -270,7 +285,33 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
     if datapath is not None:
         # save ratio to h5py
         datapath.create_dataset('filament/cluster_extent_xyz', data=std, dtype='f')
-    return labels
+
+def cluster_shape_analysis(pos, labels, box_size, datapath=None):
+    """ cluster shape analysis """
+
+    # frames
+    frames = np.arange(pos.shape[2])
+
+    # Find shape parameters
+    rg2 = []
+    asphericity = []
+    acylindricity = []
+    anisotropy = []
+    for jframe in frames:
+        n_clusters_ = len(set(labels[:,jframe])) - (1 if -1 in labels else 0)
+        for jc in range(n_clusters_):
+            cpos = pos[:,labels[:,jframe]==jc, jframe]
+            _,G_data = calc_gyration_tensor3d_pbc(cpos.transpose(), box_size)
+            asphericity.append( G_data["asphericity"])
+            acylindricity.append( G_data["acylindricity"])
+            anisotropy.append( G_data["shape_anisotropy"])
+            rg2.append( G_data["Rg2"])
+    
+    if datapath is not None:
+        datapath.create_dataset('filament/asphericity', data=asphericity, dtype='f')
+        datapath.create_dataset('filament/acylindricity', data=acylindricity, dtype='f')
+        datapath.create_dataset('filament/anisotropy', data=anisotropy, dtype='f')
+        datapath.create_dataset('filament/rg2', data=rg2, dtype='f')
 
 def cluster_nematic_order(pos, ort, labels, datapath=None):
     
@@ -361,4 +402,62 @@ def pdist_pbc_xyz_max(pos, box_size):
         pd[ pd > 0.5*box_size[jd] ] -= box_size[jd]
         dist_xyz[jd] = np.max( np.abs(pd) )
     return dist_xyz 
+
+def calc_com_pbc(pos, box_size):
+    """ calulate com of pos (N x 3) with pbc """
+    
+    # Map each dimension from a line to a circle.
+    com = np.zeros(pos.shape[1])
+    for jd in range(pos.shape[1]):
+        angle = 2*np.pi*pos[:,jd]/box_size[jd]
+
+        # Get coordinates for a point on a circle for each particle in this dimension
+        costheta = np.cos(angle)
+        sintheta = np.sin(angle)
+
+        # Get mean coordinate in this dimension
+        costheta_com = np.mean(costheta)
+        sintheta_com = np.mean(sintheta)
+
+        # Find an angle associated with this point
+        angle_com = np.arctan2(-1*sintheta_com, -1*costheta_com) + np.pi
+        
+        # Transform back to line
+        com[jd] = angle_com*box_size[jd]/(2*np.pi)
+
+    return com
+
+def packing_fraction( pos_minus, pos_plus, config, labels, 
+        save=False, savepath=None, datapath=None):
+
+    # Condensed
+    idx = labels[:,-1] == 0
+    pf_c = calc_local_packing_fraction_frame(
+            pos_minus[:,idx], pos_plus[:,idx], config['diameter_fil'],
+            config["box_size"])
+
+    # Vapor
+    idx = labels[:,-1] == -1
+    pf_v = calc_local_packing_fraction_frame(
+            pos_minus[:,idx], pos_plus[:,idx], config['diameter_fil'],
+            config["box_size"])
+
+    # Plotting
+    if save:
+        fig,ax = plt.subplots()
+        colors = sns.color_palette("husl", 2)
+        bins = np.linspace(0,np.max([np.max(pf_c), np.max(pf_v)]),12)
+        ax.hist( pf_c, bins, color=colors[0], label='Condensed', alpha=0.6)
+        ax.hist( pf_v, bins, color=colors[1], label='Vapor', alpha=0.6)
+        ax.legend()
+        ax.set(xlabel='Packing Fraction',ylabel='Count')
+        plt.tight_layout()
+        plt.savefig(savepath)
+
+    if datapath is not None:
+        # save ratio to h5py
+        datapath.create_dataset('filament/condensed_pf', data=pf_c, dtype='f')
+        datapath.create_dataset('filament/vapor_pf', data=pf_v, dtype='f')
+
+            
 
