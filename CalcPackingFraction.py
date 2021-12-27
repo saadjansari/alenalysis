@@ -76,7 +76,7 @@ def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
 
     # sample points between minus and plus ends
     cs = np.linspace(c0, c1, sampling, axis=1).reshape((c0.shape[0], -1), order='F')
-    idxLine = [int(np.floor(i/sampling)) for i in range(cs.shape[-1])]
+    idxLine = np.array([int(np.floor(i/sampling)) for i in range(cs.shape[-1])])
 
     # ensure points are within boxsize
     for jdim in range(cs.shape[0]):
@@ -87,12 +87,20 @@ def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
     kdtree = scipy.spatial.cKDTree( cs.transpose(), boxsize=boxsize)
 
     # find distance to 50 closest points using ckdtree
-    dists, _ = kdtree.query( cs.transpose(),k=sampling*10)
+    dists, idxNeigh = kdtree.query( cs.transpose(),k=sampling*6)
+    idxNeigh = idxLine[idxNeigh.flatten()].reshape(idxNeigh.shape)
+
+    # set distances to self particles to nan
+    for jrow in range(idxNeigh.shape[1]):
+        dists[jrow, idxNeigh[jrow,:]==0] = np.nan
 
     # Mean over just the points not in reference line segment
     for idx in np.arange( c0.shape[1]):
         idx_query = np.arange(idx*sampling , idx*sampling + sampling)
-        d_collision = np.mean(dists[idx_query,:])
+
+        # get indices that are not part of current filament
+        idxSample = idxNeigh[idx_query,:].flatten()
+        d_collision = np.nanmean(dists[idx_query,:])
 
         vol_occupied = math.pi * fil_len[idx]* (d_collision/2.)**2 + (4/3)*math.pi*(d_collision/2.)**3
         vol_fil = math.pi * fil_len[idx]* (diameter/2.)**2 + (4/3)*math.pi*(diameter/2.)**3
