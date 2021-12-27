@@ -377,6 +377,7 @@ def condensed_msd_diffusion(pos, labels, N=100, dt=1, save=False, savepath=None,
     ax.set(ylabel=r'MSD / $\mu m^2$')
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
+    plt.close()
 
     if datapath is not None:
         # save ratio to h5py
@@ -442,6 +443,11 @@ def packing_fraction( pos_minus, pos_plus, config, labels,
             pos_minus[:,idx], pos_plus[:,idx], config['diameter_fil'],
             config["box_size"])
 
+    # check
+    measured_total_pf = ( np.mean(pf_c)*np.sum(labels[:,-1]==0) + 
+            np.mean(pf_v)*np.sum(labels[:,-1]==-1) )/labels[:,-1].shape[0]
+    print('Measured Packing Fraction = {0:.3f}'.format(measured_total_pf))
+    
     # Plotting
     if save:
         fig,ax = plt.subplots()

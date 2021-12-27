@@ -19,7 +19,6 @@ import gc
 
 attemptFastLoad = True
 attemptFastSave = True
-gc.collect()
 
 # Define sims to analyze
 mainpath = Path('/scratch/summit/saan8193/alens/conf_scan/sims')
@@ -75,6 +74,7 @@ sim_names = [
         ]
 
 for sim_name in sim_names:
+    gc.collect()
     simpath = mainpath / sim_name
     savepath = simpath / 'plots'
     if not Path.exists(savepath):
@@ -174,3 +174,4 @@ for sim_name in sim_names:
     # delete variables
     del FData
     del XData
+    gc.collect()
