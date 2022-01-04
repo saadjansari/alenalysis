@@ -21,8 +21,8 @@ def PlotMSD(FData, savepath):
     fig,ax = plt.subplots()
     ax.plot(timeArray, np.mean(MSD, axis=0), color='blue', lw=2)
     ax.fill_between(timeArray,
-                    np.mean(MSD, axis=0) - np.std(MSD, axis=0),
-                    np.mean(MSD, axis=0) + np.std(MSD, axis=0),
+                    np.mean(MSD, axis=0) - np.std(MSD, axis=0)/np.sqrt(MSD.shape[0]),
+                    np.mean(MSD, axis=0) + np.std(MSD, axis=0)/np.sqrt(MSD.shape[0]),
                     color='blue', alpha=0.2)
     ax.set_xlim(left=-0.01)
     ax.set_ylim(bottom=-0.01)
