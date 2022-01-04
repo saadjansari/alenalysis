@@ -1,22 +1,23 @@
-import numpy as np
-import os, pdb 
+import os 
 from pathlib import Path
+import pdb 
 import h5py
+import pickle
+import tracemalloc
+import gc
+import numpy as np
 from DataHandler import FilamentSeries, CrosslinkerSeries
-from read_config import *
-from read_files import *
-from CalcNumXlinks import *
-from CalcOrderParameters import *
-from CalcOrderParametersLocal import *
-from CalcOverlaps import *
-from CalcMSD import *
-# from CalcRDF import *
-# from CalcDensityMaps import *
-from local_order.CalcLocalMaps import *
+from read_files import read_sim
+from CalcNumXlinks import PlotStateCounts, PlotXlinkPerFilament, PlotXlinkPerFilamentVsTime, PlotXlinkPerFilamentVsTimeMax
+from CalcOrderParameters import PlotNematicOrder, PlotPolarOrder, PlotNematicAndPolarOrder, PlotZOrder
+from CalcOverlaps import PlotEffectiveDiameter
+from CalcMSD import PlotMSD
+from CalcDensityMaps import PlotFilamentDensityMovie, PlotFilamentDensityLastNframes
+from local_order.CalcLocalMaps import PlotPackingFraction, PlotSOrder, PlotPOrder, PlotOrientation, PlotNematicDirector
 from CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClusters
 from CalcCondensationXlinks import PlotXlinkClusters
-from CalcMobility import *
-import pickle
+from CalcMobility import PlotMobilityFilamentVsTime
+from CalcOrderParametersLocal import *
 
 attemptFastLoad = True
 attemptFastSave = True
@@ -24,9 +25,10 @@ attemptFastSave = True
 # Define sims to analyze
 mainpath = Path('/Users/saadjansari/Documents/Projects/Results/SampleConf/Fig2')
 sim_names = [
+        # 'C3_PF16_X3_w1_p1_k1',
         'C1_PF8_X3_w1_p1_k1',
-        'C2_PF8_X3_w1_p1_k1',
-        'C3_PF8_X3_w1_p1_k1',
+        # 'C2_PF8_X3_w1_p1_k1',
+        # 'C3_PF8_X3_w1_p1_k1',
         # 'P1_PF8_X3_w1_p1_k1',
         # 'P2_PF8_X3_w1_p1_k1',
         # 'P3_PF8_X3_w1_p1_k1',
@@ -35,7 +37,11 @@ sim_names = [
         # 'S3_PF8_X3_w1_p1_k1',
         ]
 
+tracemalloc.start()
+
 for sim_name in sim_names:
+    gc.collect()
+
     simpath = mainpath / sim_name
     savepath = simpath / 'plots'
     if not Path.exists(savepath):
@@ -72,25 +78,25 @@ for sim_name in sim_names:
     # }}}
 
     # Plot Trajectories
-    # FData.plot_trajectories(savepath / 'traj_filament.pdf')
-    # XData.plot_trajectories(savepath / 'traj_xlink.pdf')
+    FData.plot_trajectories( params['plot_path']/ 'trajectory_filament.pdf', alpha=0.3)
+    XData.plot_trajectories( params['plot_path']/ 'trajectory_xlinker.pdf', alpha=0.3)
 
     # Analysis things
     # 1. Number of crosslinkers per filament
-    # PlotStateCounts(FData, XData, savepath / 'xlink_states.pdf')
-    # PlotXlinkPerFilamentVsTime( FData, XData, savepath / 'xlinks_per_fil_img.pdf')
-    # PlotXlinkPerFilament( FData, XData, savepath / 'xlinks_per_fil_hist.pdf')
-    # PlotXlinkPerFilamentVsTimeMax( FData, XData, savepath / 'xlinks_max.pdf', 5)
+    # PlotStateCounts(FData, XData, params['plot_path']/ 'graph_xlinker_num_per_state.pdf')
+    # PlotXlinkPerFilamentVsTime( FData, XData, params['plot_path']/ 'heatmap_xlinker_per_filament.pdf')
+    # PlotXlinkPerFilament( FData, XData, params['plot_path']/ 'hist_xlinker_per_filament.pdf')
+    # PlotXlinkPerFilamentVsTimeMax( FData, XData, params['plot_path']/ 'graph_xlinker_per_filament_max.pdf', 5)
 
-    # # 2. Crosslinker length vs time
-    # XData.plot_length_mean_vs_time( simpath / 'xlink_length_vs_time.pdf')
-    # XData.plot_energy_mean_vs_time( simpath / 'xlink_energy_vs_time.pdf')
+    # 2. Crosslinker length/energy vs time
+    # XData.plot_length_mean_vs_time( savepath / 'graph_xlinker_length_vs_time.pdf')
+    # XData.plot_energy_mean_vs_time( savepath / 'graph_xlinker_energy_vs_time.pdf')
     
-    # # 3. Order parameters
-    # PlotNematicOrder( FData, savepath/ 'nematic_order.pdf')     
-    # PlotPolarOrder( FData, savepath / 'polar_order.pdf')     
-    # PlotNematicAndPolarOrder( FData, savepath / 'nematic_polar_order.pdf')     
-    # PlotZOrder( FData, savepath / 'z_order.pdf')     
+    # 3. Order parameters
+    # PlotNematicOrder( FData, savepath/ 'graph_nematic_order.pdf')     
+    # PlotPolarOrder( FData, savepath / 'graph_polar_order.pdf')     
+    # PlotNematicAndPolarOrder( FData, savepath/'graph_nematic_polar_order.pdf' )
+    # PlotZOrder( FData, savepath / 'graph_z_order.pdf')     
 
     # # 4. Filament overlaps, and effective diameter
     # PlotEffectiveDiameter(FData, savepath / 'effective_diameter.pdf')
@@ -105,9 +111,9 @@ for sim_name in sim_names:
     # PlotLocalPackingFractionHistogram( FData, savepath / 'local_packing_fraction_hist.pdf')     
 
     # 6. Dynamics
-    # PlotMSD(FData, savepath / 'msd.pdf')
+    PlotMSD(FData, savepath / 'graph_msd.pdf')
 
-    # # 7. Structure
+    # 7. Structure
     # PlotRDF(FData, savepath / 'rdf.pdf', rcutoff=1.0)
     # PlotRDF(FData, savepath / 'rdf_shortrange.pdf', rcutoff=0.1)
     # PlotFilamentDensityLastNframes(FData, savepath / 'filament_density.pdf')
@@ -122,9 +128,24 @@ for sim_name in sim_names:
     # Mobility
     # PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
 
+    # displaying the memory
+    print(tracemalloc.get_traced_memory())
+
     # Filament Condensation / Clustering
-    PlotFilamentCondensation(FData, XData, params)
-    PlotFilamentClusters(FData, params)
+    # PlotFilamentCondensation(FData, XData, params)
+    # PlotFilamentClusters(FData, params)
 
     # Crosslinker Clusters
-    PlotXlinkClusters(XData, params)
+    # PlotXlinkClusters(XData, params)
+
+    # delete variables
+    del FData
+    del XData
+    # close data stream
+    data_filestream.close()
+    # displaying the memory
+    gc.collect()
+    print(tracemalloc.get_traced_memory())
+
+# stopping the library
+tracemalloc.stop()
