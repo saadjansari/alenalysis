@@ -41,7 +41,7 @@ for isim in sims:
 #SBATCH --nodes=1      # nodes requested
 #SBATCH --cpus-per-task=1
 
-source /home/${USER}/.bashrc
+source /home/${2}/.bashrc
 #module load python
 conda activate pysos
 python --version
@@ -50,7 +50,7 @@ export PYTHONUNBUFFERED=1
 python main.py {0}
 """
 
-    jobString = jobStringDef.format( simpath, time)
+    jobString = jobStringDef.format( simpath, time, 'USER')
     with open('jobscript.sh', 'w') as f:
         f.write( jobString)
 
