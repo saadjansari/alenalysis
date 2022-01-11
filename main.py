@@ -45,18 +45,20 @@ def main( params):
     print('\nSim Name : {0}'.format(sim_name))
     
     # Read sim into FilamentData and CrosslinkerData {{{
-    fastpath = simpath / 'FXdata.pickle'
-    if attemptFastLoad and Path.exists(fastpath):
-        with open(fastpath, "rb") as fp:
-            try:
-                FData, XData = pickle.load(fp)
-            except:
-                FData, XData = renamed_load(fp)
+    fastpath_f = simpath / 'Fdata.pickle'
+    fastpath_x = simpath / 'Xdata.pickle'
+    if attemptFastLoad and Path.exists(fastpath_f) and Path.exists(fastpath_x):
+        with open(fastpath_f, "rb") as fp:
+            FData = pickle.load(fp)
+        with open(fastpath_x, "rb") as fp:
+            XData = pickle.load(fp)
     else:
         FData, XData = read_sim(simpath, sim_name[0])
         if attemptFastSave:
-            with open(fastpath, "wb") as fp:
-                pickle.dump([FData, XData], fp)
+            with open(fastpath_f, "wb") as fp:
+                pickle.dump(FData, fp)
+            with open(fastpath_x, "wb") as fp:
+                pickle.dump(XData, fp)
     # }}}
 
     # Plot Trajectories
