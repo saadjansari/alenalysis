@@ -1,7 +1,7 @@
 from numba import njit
 import numpy as np
-import decorators
-from DataHandler import *
+import src.decorators
+from src.DataHandler import *
 import scipy.spatial.ckdtree
 
 # Plotting
@@ -33,7 +33,7 @@ def PlotEffectiveDiameter(FData, savepath):
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
 
-@decorators.timer
+@src.decorators.timer
 def calc_effective_diameter(pos_minus, pos_plus, diameter):
     # Calculate the effective diameter by computing overlaps 
     

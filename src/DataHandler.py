@@ -4,9 +4,9 @@ from random import sample
 import matplotlib.pyplot as plt
 import pdb
 # import vtk
-from unfold_trajectories import *
-from CalcOrderParametersLocal import * 
-from CalcPackingFraction import * 
+from src.unfold_trajectories import *
+from src.CalcOrderParametersLocal import * 
+from src.CalcPackingFraction import * 
 
 # DataSeries {{{
 class DataSeries:

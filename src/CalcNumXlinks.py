@@ -1,7 +1,7 @@
 from numba import njit
 import numpy as np
-import decorators
-from DataHandler import *
+import src.decorators
+from src.DataHandler import *
 
 # Plotting
 def PlotStateCounts( FData, XData, savepath):
@@ -117,7 +117,7 @@ def CalcNumXlink_Doubly( FData, XData):
     _,_,nxd = calc_num_xlink(XData.link0, XData.link1)
     return nxd
 
-@decorators.timer
+@src.decorators.timer
 @njit
 def calc_num_xlink_filament(link0,link1, n_fil):
     # calculate the num of singly, doubly bound xlinkers for each filament
@@ -140,7 +140,7 @@ def calc_num_xlink_filament(link0,link1, n_fil):
                 nxs_per_fil[idx1,jt]+=1
     return nxs_per_fil, nxd_per_fil
 
-@decorators.timer
+@src.decorators.timer
 @njit
 def calc_num_xlink(link0,link1):
     # calculate the num of singly, doubly bound xlinker crosslinkers 

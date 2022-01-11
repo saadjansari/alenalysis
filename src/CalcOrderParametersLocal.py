@@ -1,7 +1,7 @@
 from numba import njit
 import numpy as np
-import decorators
-from DataHandler import *
+import src.decorators
+from src.DataHandler import *
 import pdb
 import scipy.spatial.ckdtree
 
@@ -88,7 +88,7 @@ def calc_local_order( c, orients, boxsize, max_dist):
         Porder[:,jframe], Sorder[:,jframe] = calc_local_order_frame( c[:,:,jframe], orients[:,:,jframe], boxsize, max_dist)
     return Porder, Sorder
 
-@decorators.timer
+@src.decorators.timer
 # @njit(parallel=True)
 def calc_local_order_frame( c, orients, boxsize, max_dist):
     """

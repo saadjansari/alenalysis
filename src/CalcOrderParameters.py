@@ -1,7 +1,7 @@
 from numba import njit
 import numpy as np
-import decorators
-from DataHandler import *
+import src.decorators
+from src.DataHandler import *
 
 # Plotting
 def PlotNematicOrder(FData, savepath):

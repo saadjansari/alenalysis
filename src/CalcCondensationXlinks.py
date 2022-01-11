@@ -1,13 +1,13 @@
 from numba import njit
 import numpy as np
 from matplotlib import pyplot as plt
-import decorators
+import src.decorators
 import pdb
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
-from CalcCondensationFilaments import pdist_pbc, pdist_pbc_xyz_max
-from calc_gyration_tensor import calc_gyration_tensor3d_pbc
+from src.CalcCondensationFilaments import pdist_pbc, pdist_pbc_xyz_max
+from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
 
 def PlotXlinkClusters(XData, params, N=50):
     """ Plot the xlinker clusters"""

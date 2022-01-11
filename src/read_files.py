@@ -1,8 +1,8 @@
 import numpy as np
 import pdb
 from pathlib import Path
-from DataHandler import FilamentSeries, CrosslinkerSeries
-from read_config import *
+from src.DataHandler import FilamentSeries, CrosslinkerSeries
+from src.read_config import *
 # import vtk
 
 

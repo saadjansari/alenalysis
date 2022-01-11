@@ -1,7 +1,7 @@
 from numba import njit
 import numpy as np
 from matplotlib import pyplot as plt
-import decorators
+import src.decorators
 import pdb
 from scipy.ndimage import convolve as conv
 
@@ -29,7 +29,7 @@ def PlotMobilityFilamentVsTime( FData, savepath):
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-@decorators.timer
+@src.decorators.timer
 def calc_mobility(pos,windowSize=10):
     # calculate mobility 3D: squared displacement
 

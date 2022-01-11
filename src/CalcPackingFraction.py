@@ -1,7 +1,7 @@
 from numba import njit
 import numpy as np
-import decorators
-from DataHandler import *
+import src.decorators
+from src.DataHandler import *
 import pdb
 import scipy.spatial.ckdtree
 import math
@@ -59,7 +59,7 @@ def calc_local_packing_fraction( c0, c1, diameter, boxsize):
                 c1[:,:,jframe], diameter, boxsize)
     return pf
 
-@decorators.timer
+@src.decorators.timer
 # @njit(parallel=True)
 def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
     """

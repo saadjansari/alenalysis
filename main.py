@@ -6,96 +6,40 @@ import pickle
 import tracemalloc
 import gc
 import numpy as np
-from DataHandler import FilamentSeries, CrosslinkerSeries
-from read_files import read_sim
-from CalcNumXlinks import PlotStateCounts, PlotXlinkPerFilament, PlotXlinkPerFilamentVsTime, PlotXlinkPerFilamentVsTimeMax
-from CalcOrderParameters import PlotNematicOrder, PlotPolarOrder, PlotNematicAndPolarOrder, PlotZOrder
-from CalcOverlaps import PlotEffectiveDiameter
-from CalcMSD import PlotMSD
-from CalcDensityMaps import PlotFilamentDensityMovie, PlotFilamentDensityLastNframes
-from local_order.CalcLocalMaps import PlotPackingFraction, PlotSOrder, PlotPOrder, PlotOrientation, PlotNematicDirector
-from CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClusters
-from CalcCondensationXlinks import PlotXlinkClusters
-from CalcMobility import PlotMobilityFilamentVsTime
-from CalcOrderParametersLocal import *
+import sys
+from src.DataHandler import FilamentSeries, CrosslinkerSeries
+from src.read_files import read_sim
+from src.CalcNumXlinks import PlotStateCounts, PlotXlinkPerFilament, PlotXlinkPerFilamentVsTime, PlotXlinkPerFilamentVsTimeMax
+from src.CalcOrderParameters import PlotNematicOrder, PlotPolarOrder, PlotNematicAndPolarOrder, PlotZOrder
+from src.CalcOverlaps import PlotEffectiveDiameter
+from src.CalcMSD import PlotMSD
+from src.CalcDensityMaps import PlotFilamentDensityMovie, PlotFilamentDensityLastNframes
+from src.CalcLocalMaps import PlotPackingFraction, PlotSOrder, PlotPOrder, PlotOrientation, PlotNematicDirector
+from src.CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClusters
+from src.CalcCondensationXlinks import PlotXlinkClusters
+from src.CalcMobility import PlotMobilityFilamentVsTime
+from src.CalcOrderParametersLocal import *
+from src.unpickler import renamed_load
 
-attemptFastLoad = True
-attemptFastSave = True
+def main( params):
 
-# Define sims to analyze
-mainpath = Path('/scratch/summit/saan8193/alens/conf_scan/sims')
-sim_names = [
-        'C1_PF4_X1_w1_p1_k1',
-        'C2_PF4_X1_w1_p1_k1',
-        'C3_PF4_X1_w1_p1_k1',
-        'C4_PF4_X1_w1_p1_k1',
-        'C1_PF8_X1_w1_p1_k1',
-        'C2_PF8_X1_w1_p1_k1',
-        'C3_PF8_X1_w1_p1_k1',
-        'C4_PF8_X1_w1_p1_k1',
-        'C1_PF16_X1_w1_p1_k1',
-        'C2_PF16_X1_w1_p1_k1',
-        'C3_PF16_X1_w1_p1_k1',
-        'C4_PF16_X1_w1_p1_k1',
-        'C1_PF4_X2_w1_p1_k1',
-        'C2_PF4_X2_w1_p1_k1',
-        'C3_PF4_X2_w1_p1_k1',
-        'C4_PF4_X2_w1_p1_k1',
-        'C1_PF8_X2_w1_p1_k1',
-        'C2_PF8_X2_w1_p1_k1',
-        'C3_PF8_X2_w1_p1_k1',
-        'C4_PF8_X2_w1_p1_k1',
-        'C1_PF16_X2_w1_p1_k1',
-        'C2_PF16_X2_w1_p1_k1',
-        'C3_PF16_X2_w1_p1_k1',
-        'C4_PF16_X2_w1_p1_k1',
-        'C1_PF4_X3_w1_p1_k1',
-        'C2_PF4_X3_w1_p1_k1',
-        'C3_PF4_X3_w1_p1_k1',
-        'C4_PF4_X3_w1_p1_k1',
-        'C1_PF8_X3_w1_p1_k1',
-        'C2_PF8_X3_w1_p1_k1',
-        'C3_PF8_X3_w1_p1_k1',
-        'C4_PF8_X3_w1_p1_k1',
-        'C1_PF16_X3_w1_p1_k1',
-        'C2_PF16_X3_w1_p1_k1',
-        'C3_PF16_X3_w1_p1_k1',
-        'C4_PF16_X3_w1_p1_k1',
-        'C1_PF4_X4_w1_p1_k1',
-        'C2_PF4_X4_w1_p1_k1',
-        'C3_PF4_X4_w1_p1_k1',
-        'C4_PF4_X4_w1_p1_k1',
-        'C1_PF8_X4_w1_p1_k1',
-        'C2_PF8_X4_w1_p1_k1',
-        'C3_PF8_X4_w1_p1_k1',
-        'C4_PF8_X4_w1_p1_k1',
-        'C1_PF16_X4_w1_p1_k1',
-        'C2_PF16_X4_w1_p1_k1',
-        'C3_PF16_X4_w1_p1_k1',
-        'C4_PF16_X4_w1_p1_k1',
-        ]
-
-for sim_name in sim_names:
+    attemptFastLoad = True
+    attemptFastSave = True
+    tracemalloc.start()
     gc.collect()
-    simpath = mainpath / sim_name
-    savepath = simpath / 'plots'
-    if not Path.exists(savepath):
-        os.mkdir(savepath)
+    
+    sim_name = params['sim_name']
+    simpath = params['sim_path']
+    savepath = params['plot_path']
+    datapath = params['data_path']
+    if not Path.exists( savepath):
+        os.mkdir( savepath)
         
     # analysis data h5py
-    h5path = simpath / 'data.hdf5'
-    if Path.exists(h5path):
-        os.system('rm {0}'.format(str(h5path)) )
-    data_filestream = h5py.File(h5path, "w")
-
-    # paths
-    params = {
-            'sim_name': sim_name,
-            'sim_path': simpath,
-            'plot_path': savepath,
-            'data_path': h5path,
-            'data_filestream': data_filestream,
-            }
+    if Path.exists(datapath):
+        os.system('rm {0}'.format(str(datapath)) )
+    data_filestream = h5py.File( datapath, "w")
+    params['data_filestream'] = data_filestream
 
     print('_'*50)
     print('\nSim Name : {0}'.format(sim_name))
@@ -104,7 +48,8 @@ for sim_name in sim_names:
     fastpath = simpath / 'FXdata.pickle'
     if attemptFastLoad and Path.exists(fastpath):
         with open(fastpath, "rb") as fp:
-            FData, XData = pickle.load(fp)
+            # FData, XData = pickle.load(fp)
+            FData, XData = renamed_load(fp)
     else:
         FData, XData = read_sim(simpath, sim_name[0])
         if attemptFastSave:
@@ -164,16 +109,28 @@ for sim_name in sim_names:
     # PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
 
     # Filament Condensation / Clustering
-    PlotFilamentCondensation(FData, XData, params)
-    PlotFilamentClusters(FData, params)
+    # PlotFilamentCondensation(FData, XData, params)
+    # PlotFilamentClusters(FData, params)
 
     # Crosslinker Clusters
-    PlotXlinkClusters(XData, params)
+    # PlotXlinkClusters(XData, params)
 
     # Close data file
     data_filestream.close()
-    
-    # delete variables
     del FData
     del XData
+    
     gc.collect()
+    print(tracemalloc.get_traced_memory())
+    # stopping the library
+    tracemalloc.stop()
+
+if __name__ == '__main__':
+    simpath = Path(sys.argv[1])
+    params = {
+            'sim_name': simpath.name,
+            'sim_path': simpath,
+            'plot_path': simpath / 'plots',
+            'data_path': simpath / 'data.hdf5',
+            }
+    main(params)

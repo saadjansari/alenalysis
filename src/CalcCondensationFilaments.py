@@ -1,20 +1,19 @@
 from numba import njit
-import decorators
 import numpy as np
 from matplotlib import pyplot as plt
-import decorators
-from CalcMobility import calc_mobility
-from CalcNumXlinks import calc_num_xlink_filament
+import src.decorators
+from src.CalcMobility import calc_mobility
+from src.CalcNumXlinks import calc_num_xlink_filament
 import pdb
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans, DBSCAN
 import seaborn as sns
-from CalcOrderParameters import calc_nematic_tensor
-from CalcMSD import calc_msd_fft
+from src.CalcOrderParameters import calc_nematic_tensor
+from src.CalcMSD import calc_msd_fft
 from scipy.spatial.distance import pdist, squareform
-from calc_gyration_tensor import calc_gyration_tensor3d_pbc
-from CalcPackingFraction import calc_local_packing_fraction_frame
+from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
+from src.CalcPackingFraction import calc_local_packing_fraction_frame
 
 def PlotFilamentCondensation(FData, XData, params):
     """ Plot the filament condensation """
