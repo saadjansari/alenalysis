@@ -48,8 +48,10 @@ def main( params):
     fastpath = simpath / 'FXdata.pickle'
     if attemptFastLoad and Path.exists(fastpath):
         with open(fastpath, "rb") as fp:
-            # FData, XData = pickle.load(fp)
-            FData, XData = renamed_load(fp)
+            try:
+                FData, XData = pickle.load(fp)
+            except:
+                FData, XData = renamed_load(fp)
     else:
         FData, XData = read_sim(simpath, sim_name[0])
         if attemptFastSave:
