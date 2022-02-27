@@ -65,7 +65,7 @@ def calc_effective_diameter(pos_minus, pos_plus, diameter):
     return np.array( overlapList)
 
 @njit
-def minDistBetweenTwoFil(p1, p2, p3, p4):
+def minDistBetweenTwoFil(p1, p2, p3, p4, box_size):
     """
     Find Minimum Distance between two filaments
 
@@ -94,6 +94,22 @@ def minDistBetweenTwoFil(p1, p2, p3, p4):
     u = p1 - p2
     v = p3 - p4
     w = p2 - p4
+
+    # Apply PBC
+    for jdim in np.arange(box_size.shape[0]):
+        bs=box_size[jdim]
+        if u[jdim] > 0.5*bs:
+            u[jdim]-=bs
+        elif u[jdim] <= -0.5*bs:
+            u[jdim]+=bs
+        if v[jdim] > 0.5*bs:
+            v[jdim]-=bs
+        elif v[jdim] <= -0.5*bs:
+            v[jdim]+=bs
+        if w[jdim] > 0.5*bs:
+            w[jdim]-=bs
+        elif w[jdim] <= -0.5*bs:
+            w[jdim]+=bs
 
     a = np.dot(u,u)
     b = np.dot(u,v)
@@ -166,8 +182,9 @@ def minDistBetweenTwoFil(p1, p2, p3, p4):
     # cp_2 = p4+tc*v  # Closest point on object 2
     return distance
 
+@src.decorators.timer
 @njit
-def minDistBetweenAllFilaments(a0,a1, b0,b1):
+def minDistBetweenAllFilaments(a0,a1, b0,b1, box_size):
 
     n_fil = a0.shape[1]
     dmat = np.zeros((n_fil,n_fil))
@@ -178,7 +195,7 @@ def minDistBetweenAllFilaments(a0,a1, b0,b1):
             elif idx1 > idx2:
                 continue
             else:
-                dmat[idx1,idx2] = minDistBetweenTwoFil( a0[:,idx1],a1[:,idx1], b0[:,idx2], b1[:,idx2])
+                dmat[idx1,idx2] = minDistBetweenTwoFil( a0[:,idx1],a1[:,idx1], b0[:,idx2], b1[:,idx2], box_size)
                 dmat[idx2,idx1] = dmat[idx1,idx2]
                 
     return dmat

@@ -17,6 +17,14 @@ if not cfg['custom_sims']:
                         sims.append('{0}_PF{1}_X{2}_{3}_k{4}'.format(jconf, jpf, jx, wp, kval) )
 else:
     sims = cfg['sims']
+
+# Filament correlations mode
+correlation_mode = cfg['filament_correlations_mode']
+if correlation_mode:
+    filename = 'correlations.py'
+else:
+    filename = 'main.py'
+
 print(sims)
 
 # Time on summit
@@ -48,10 +56,10 @@ conda activate pysos
 python --version
 
 export PYTHONUNBUFFERED=1
-python main.py {0}
+python {3} {0}
 """
 
-    jobString = jobStringDef.format( simpath, time, 'USER')
+    jobString = jobStringDef.format( simpath, time, 'USER', filename)
     with open('jobscript.sh', 'w') as f:
         f.write( jobString)
 

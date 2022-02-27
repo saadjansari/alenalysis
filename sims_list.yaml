@@ -1,12 +1,14 @@
 #path: '/Users/saadjansari/Documents/Projects/Results/SampleConf/Misc/kinesin1'
-#path: '/Volumes/WorkSSD/Confinement_paper/Fig4'
-path: '/Volumes/WorkSSD/Confinement_paper/Fig34'
+path: '/Volumes/WorkSSD/Confinement_paper/Fig4'
+#path: '/scratch/summit/saan8193/alens/conf_scan/sims'
+#path: '/Volumes/WorkSSD/Confinement_paper/Fig34'
 
 Confinement: ['P1']
 PackingFraction: [16]
 NumXlinks: [2,4]
 k_val: [1]
 walk_pause: ['w1_p0']
+filament_correlations_mode: True
 
 custom_sims: True
 sims:
@@ -18,14 +20,14 @@ sims:
     #- 'P1_PF8_X2_w1_p0_k1'
     #- 'P1_PF8_X3_w1_p0_k1'
     #- 'P1_PF8_X4_w1_p0_k1'
-    #- 'P1_PF16_X1_w1_p0_k1'
+    - 'P1_PF16_X1_w1_p0_k1'
     #- 'P1_PF16_X2_w1_p0_k1'
     #- 'P1_PF16_X3_w1_p0_k1'
     #- 'P1_PF16_X4_w1_p0_k1'
-    - 'P1_PF4_X1_w1_p1_k1'
-    - 'P1_PF4_X2_w1_p1_k1'
-    - 'P1_PF4_X3_w1_p1_k1'
-    - 'P1_PF4_X4_w1_p1_k1'
+    #- 'P1_PF4_X1_w1_p1_k1'
+    #- 'P1_PF4_X2_w1_p1_k1'
+    #- 'P1_PF4_X3_w1_p1_k1'
+    #- 'P1_PF4_X4_w1_p1_k1'
     #- 'P1_PF4_X8_w1_p1_k1'
     #- 'P1_PF4_X12_w1_p1_k1'
     #- 'P1_PF16_X1_w1_p1_k1'

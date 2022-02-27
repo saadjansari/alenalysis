@@ -18,6 +18,9 @@ if not cfg['custom_sims']:
 else:
     sims = cfg['sims']
 
+# Filament correlations mode
+correlation_mode = cfg['filament_correlations_mode']
+
 # Print sims names
 print("-"*50)
 print("-"*50)
@@ -40,7 +43,10 @@ for sim in sims:
     simpath = cfg['path'] + '/' + sim
     # errorCode = os.system('python test.py {0}'.format(simpath))
     # os.system('python main.py {0}'.format(simpath))
-    errorCode = os.system('python main.py {0}'.format(simpath))
+    if correlation_mode:
+        errorCode = os.system('python correlations.py {0}'.format(simpath))
+    else:
+        errorCode = os.system('python main.py {0}'.format(simpath))
     if errorCode != 0:
         print('Error Code = {0}'.format(errorCode))
         raise Exception('Analysis crashed...')
