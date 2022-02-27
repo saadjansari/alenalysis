@@ -20,7 +20,7 @@ else:
 print(sims)
 
 # Time on summit
-time = '01:00:00'
+time = '05:00:00'
 
 # check sims exist
 for isim in sims:
@@ -33,13 +33,14 @@ for isim in sims:
 #SBATCH --qos=condo
 #SBATCH --partition=shas
 #SBATCH --account=ucb-summit-smr
+#SBATCH --mem=14G
 
 #SBATCH -o {0}/alenalysis.out  # send stdout to outfile
 #SBATCH -e {0}/alenalysis.err # send stderr to errfile
 #SBATCH --time={1}
 
 #SBATCH --nodes=1      # nodes requested
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=3
 
 source /home/${2}/.bashrc
 #module load python
