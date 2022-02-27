@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import pdb 
 import h5py
-import pickle
+# import pickle
 import tracemalloc
 import gc
 import numpy as np
@@ -14,12 +14,19 @@ from src.CalcOrderParameters import PlotNematicOrder, PlotPolarOrder, PlotNemati
 from src.CalcOverlaps import PlotEffectiveDiameter
 from src.CalcMSD import PlotMSD
 from src.CalcDensityMaps import PlotFilamentDensityMovie, PlotFilamentDensityLastNframes
-from src.CalcLocalMaps import PlotPackingFraction, PlotSOrder, PlotPOrder, PlotOrientation, PlotNematicDirector
+from src.CalcLocalMaps import PlotPackingFraction, PlotSOrder, PlotPOrder, PlotOrientation, PlotNematicDirector, PlotNumberDensity, PlotNumberDensityXlink
 from src.CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClusters
 from src.CalcCondensationXlinks import PlotXlinkClusters
 from src.CalcMobility import PlotMobilityFilamentVsTime
 from src.CalcOrderParametersLocal import *
 from src.unpickler import renamed_load
+from src.CalcPackingFraction import PlotLocalPackingFractionHistogram, PlotLocalPackingFractionVsTime
+from src.CalcContactNumber import PlotContactNumberHistogram, PlotContactNumberVsTime, WriteContactNumber2vtk, CalcSaveContactNumber
+from src.CalcCrosslinkerOrientations import PlotXlinkOrientations
+from src.CalcRDF import PlotRDF, PlotRDF_PAP
+from src.Write3DOrientation2vtk import Write3DOrientation2vtk
+from src.CalcCrosslinkerPositionOnFilament import PlotCrosslinkerPositionOnFilament
+from src.CalcMinDist import CalcSaveMinDist
 
 def main( params):
 
@@ -45,25 +52,26 @@ def main( params):
     print('\nSim Name : {0}'.format(sim_name))
     
     # Read sim into FilamentData and CrosslinkerData {{{
-    fastpath_f = simpath / 'Fdata.pickle'
-    fastpath_x = simpath / 'Xdata.pickle'
-    if attemptFastLoad and Path.exists(fastpath_f) and Path.exists(fastpath_x):
-        with open(fastpath_f, "rb") as fp:
-            FData = pickle.load(fp)
-        with open(fastpath_x, "rb") as fp:
-            XData = pickle.load(fp)
-    else:
-        FData, XData = read_sim(simpath, sim_name[0])
-        if attemptFastSave:
-            with open(fastpath_f, "wb") as fp:
-                pickle.dump(FData, fp)
-            with open(fastpath_x, "wb") as fp:
-                pickle.dump(XData, fp)
+    FData, XData = read_sim(simpath, sim_name[0])
+    # fastpath_f = simpath / 'Fdata.pickle'
+    # fastpath_x = simpath / 'Xdata.pickle'
+    # if attemptFastLoad and Path.exists(fastpath_f) and Path.exists(fastpath_x):
+        # with open(fastpath_f, "rb") as fp:
+            # FData = pickle.load(fp)
+        # with open(fastpath_x, "rb") as fp:
+            # XData = pickle.load(fp)
+    # else:
+        # FData, XData = read_sim(simpath, sim_name[0])
+        # if attemptFastSave:
+            # with open(fastpath_f, "wb") as fp:
+                # pickle.dump(FData, fp)
+            # with open(fastpath_x, "wb") as fp:
+                # pickle.dump(XData, fp)
     # }}}
 
     # Plot Trajectories
-    FData.plot_trajectories( params['plot_path']/ 'trajectory_filament.pdf', alpha=0.3)
-    XData.plot_trajectories( params['plot_path']/ 'trajectory_xlinker.pdf', alpha=0.3)
+    # FData.plot_trajectories( params['plot_path']/ 'trajectory_filament.pdf', alpha=0.3)
+    # XData.plot_trajectories( params['plot_path']/ 'trajectory_xlinker.pdf', alpha=0.3)
 
     # Analysis things
     # 1. Number of crosslinkers per filament
@@ -86,23 +94,39 @@ def main( params):
     # PlotEffectiveDiameter(FData, savepath / 'hist_effective_diameter.pdf')
 
     # 5. Local Order Parameters
-    # FData.CalcLocalStructure()
-    # PlotLocalPolarOrderVsTime( FData, savepath / 'local_polar_order_img.pdf')     
-    # PlotLocalPolarOrderHistogram( FData, savepath / 'local_polar_order_hist.pdf')     
-    # PlotLocalNematicOrderVsTime( FData, savepath / 'local_nematic_order_img.pdf')     
-    # PlotLocalNematicOrderHistogram( FData, savepath / 'local_nematic_order_hist.pdf')     
+    # Calculate Minimum Distance
+    FData.MD = CalcSaveMinDist(FData, params['sim_path'])
+    # Contact Number
+    FData.CN = CalcSaveContactNumber(FData, params['sim_path'])
+    # Calculate Local Order 
+    FData.LPO, FData.LNO = CalcSaveLocalOrder(FData, params['sim_path'])
+
+    # FData.CalcLocalStructure(N=50)
+    # PlotContactNumberVsTime(FData, savepath / 'heatmap_contact_number_per_filament.pdf')     
+    # PlotContactNumberHistogram(FData, savepath / 'hist_contact_number_per_filament.pdf')     
+    # PlotLocalPolarOrderVsTime( FData, savepath / 'heatmap_local_polar_order.pdf')     
+    # PlotLocalPolarOrderHistogram( FData, savepath / 'hist_local_polar_order.pdf')     
+    # PlotLocalNematicOrderVsTime( FData, savepath / 'heatmap_local_nematic_order.pdf')     
+    # PlotLocalNematicOrderHistogram( FData, savepath / 'hist_local_nematic_order.pdf')     
+    # PlotLocalNematicOrderContactNumberHistogram( FData, savepath / 'hist2_local_nematic_order_contact_number.pdf')     
+    # PlotLocalPolarOrderContactNumberHistogram( FData, savepath / 'hist2_local_polar_order_contact_number.pdf')     
+    # PlotLocalNematicOrderLocalPolarOrderHistogram( FData, savepath / 'hist2_local_nematic_order_local_polar_order.pdf')     
+    # WriteLocalOrder2vtk(FData, params)
+    # WriteContactNumber2vtk(FData, params)
     # PlotLocalPackingFractionVsTime( FData, savepath / 'local_packing_fraction_img.pdf')     
     # PlotLocalPackingFractionHistogram( FData, savepath / 'local_packing_fraction_hist.pdf')     
 
     # 6. Dynamics
-    PlotMSD(FData, savepath / 'graph_msd.pdf')
+    # PlotMSD(FData, savepath / 'graph_msd.pdf')
 
     # # 7. Structure
-    # PlotRDF(FData, savepath / 'rdf.pdf', rcutoff=1.0)
-    # PlotRDF(FData, savepath / 'rdf_shortrange.pdf', rcutoff=0.1)
+    # PlotRDF(FData, params)
+    # PlotRDF_PAP(FData, params)
     # PlotFilamentDensityLastNframes(FData, savepath / 'filament_density.pdf')
     # PlotFilamentDensityMovie(FData, savepath / 'density_movie', frame_gap=1)
-    # PlotPackingFraction(FData, savepath / 'map_packing_fraction.pdf')
+    # PlotPackingFraction(FData, savepath / 'map_packing_fraction.pdf', N=20)
+    # PlotNumberDensity(FData, savepath / 'map_number_density.pdf', N=20)
+    # PlotNumberDensityXlink(FData, XData, savepath / 'map_number_density_xlink.pdf', N=20)
     # PlotSOrder(FData, savepath / 'map_nematic_order.pdf')
     # PlotPOrder(FData, savepath / 'map_polar_order.pdf')
     # PlotFlux(FData, savepath / 'map_flux.pdf')
@@ -112,12 +136,21 @@ def main( params):
     # Mobility
     # PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
 
-    # Filament Condensation / Clustering
-    # PlotFilamentCondensation(FData, XData, params)
-    # PlotFilamentClusters(FData, params)
+    # Crosslinker Distribution on MTs
+    # PlotCrosslinkerPositionOnFilament(FData, XData, params)
 
     # Crosslinker Clusters
     # PlotXlinkClusters(XData, params)
+    
+    # Write Filament Orientation to VTK
+    # Write3DOrientation2vtk(FData, XData, params)
+
+    # Filament Condensation / Clustering
+    # PlotFilamentCondensation(FData, XData, params, write2vtk=False)
+    # PlotFilamentClusters(FData, params, N=400)
+
+    # Crosslinker Filament orientation angle
+    # PlotXlinkOrientations(FData, XData, savepath / 'hist_crosslinker_angles.pdf')
 
     # Close data file
     data_filestream.close()

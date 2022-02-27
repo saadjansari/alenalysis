@@ -16,7 +16,6 @@ def PlotMobilityFilamentVsTime( FData, savepath):
 
     # Mobility
     mobi = calc_mobility(pos_unfolded)
-    pdb.set_trace()
 
     # Display image
     fig,ax = plt.subplots(figsize=(6,6))
@@ -40,9 +39,10 @@ def calc_mobility(pos,windowSize=10):
     cumDisp = np.zeros_like(pos[-1,:,:])
 
     for jfil in np.arange(nfil):
-        pos_unfolded = pos[:,jfil,:]
+        pos_unfolded = pos[:,jfil,1:]
         pos2 = np.linalg.norm( np.diff(pos_unfolded, axis=1), axis=0)
-        cumDisp[jfil,1:] = conv(pos2, convKernel, mode='nearest')
-    cumDisp[:,0] = cumDisp[:,1]
+        cumDisp[jfil,2:] = conv(pos2, convKernel, mode='constant', cval=np.mean(pos2.flatten()) )
+    cumDisp[:,0] = cumDisp[:,2]
+    cumDisp[:,1] = cumDisp[:,2]
     return cumDisp
 

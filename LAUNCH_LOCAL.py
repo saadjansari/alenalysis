@@ -18,16 +18,29 @@ if not cfg['custom_sims']:
 else:
     sims = cfg['sims']
 
-print(sims)
-
-            
+# Print sims names
+print("-"*50)
+print("-"*50)
+print('\n')
+print("   ###    ##       ######## ##    ##    ###    ##       ##    ##  ######  ####  ######")
+print("  ## ##   ##       ##       ###   ##   ## ##   ##        ##  ##  ##    ##  ##  ##    ##")
+print(" ##   ##  ##       ##       ####  ##  ##   ##  ##         ####   ##        ##  ##")
+print("##     ## ##       ######   ## ## ## ##     ## ##          ##     ######   ##   ######")
+print("######### ##       ##       ##  #### ######### ##          ##          ##  ##        ##")
+print("##     ## ##       ##       ##   ### ##     ## ##          ##    ##    ##  ##  ##    ##")
+print("##     ## ######## ######## ##    ## ##     ## ########    ##     ######  ####  ######")
+print('\n')
+print('Sims to analyze :')
+for idx in range(len(sims)):
+    print('\t{0}. {1}'.format(idx, sims[idx]))
+print('\n')
 
 # launch sims individually
 for sim in sims:
     simpath = cfg['path'] + '/' + sim
-    print('python test.py {0}'.format(simpath))
-    errorCode = os.system('python test.py {0}'.format(simpath))
-    # errorCode = os.system('python main.py {0}'.format(simpath))
+    # errorCode = os.system('python test.py {0}'.format(simpath))
+    # os.system('python main.py {0}'.format(simpath))
+    errorCode = os.system('python main.py {0}'.format(simpath))
     if errorCode != 0:
         print('Error Code = {0}'.format(errorCode))
         raise Exception('Analysis crashed...')

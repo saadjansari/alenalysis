@@ -6,10 +6,11 @@ import pdb
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
-from src.CalcCondensationFilaments import pdist_pbc, pdist_pbc_xyz_max
+from src.CalcCondensationFilaments import pdist_pbc, pdist_pbc_xyz_max, calc_com_pbc
 from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
 
-def PlotXlinkClusters(XData, params, N=50):
+# PlotXlinkClusters {{{
+def PlotXlinkClusters(XData, params, N=100):
     """ Plot the xlinker clusters"""
     
     # Get last N frames
@@ -21,20 +22,27 @@ def PlotXlinkClusters(XData, params, N=50):
     labels = cluster_via_dbscan(pos_com[:,:,frames], XData.config_['box_size'],
             save=True, savepath=params['plot_path'] / 'cluster_xlinker_dbscan.pdf')
 
+    # Plot radial distance from cluter COM
+    cluster_radial_distances(XData.pos_minus_[:,:,frames], XData.pos_plus_[:,:,frames], labels, XData.config_['box_size'],
+            save=True, savepath=params['plot_path'] / 'cluster_xlinker_radial_distribution.pdf',
+            datapath=params['data_filestream'])
+
     # Shape analysis
-    cluster_shape_analysis(pos_com[:,:,frames], labels, XData.config_['box_size'],
+    cluster_shape_analysis(XData.pos_minus_[:,:,frames], XData.pos_plus_[:,:,frames], labels, XData.config_['box_size'],
             datapath=params['data_filestream'])
-    cluster_shape_analysis_extent(pos_com[:,:,frames], labels, XData.config_['box_size'],
-            save=True, savepath=params['plot_path'] / 'cluster_xlinker_extent.pdf',
-            datapath=params['data_filestream'])
+    # cluster_shape_analysis_extent(pos_com[:,:,frames], labels, XData.config_['box_size'],
+            # save=True, savepath=params['plot_path'] / 'cluster_xlinker_extent.pdf',
+            # datapath=params['data_filestream'])
 
+# }}}
 
+# cluster_via_dbscan {{{
 def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
     """ cluster using dbscan """
 
-    min_cluster_size = 50
-    eps = 0.2 # min neighbor distance for identification of cores
-    min_samples = 6 # min size of core
+    min_cluster_size = 20
+    eps = 0.05 # min neighbor distance for identification of cores
+    min_samples = 10 # min size of core
 
     # frames
     frames = np.arange(pos_all.shape[2])
@@ -69,6 +77,15 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
                 labels[ labels==c_label] = idx
             
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        # from sklearn.neighbors import NearestNeighbors
+        # neighbors = NearestNeighbors(n_neighbors=min_samples)
+        # neighbors_fit = neighbors.fit(pos.transpose())
+        # distances, indices = neighbors_fit.kneighbors(pos.transpose())
+        # distances = np.sort(distances, axis=0)[:,1]
+        # plt.plot(distances);plt.show()
+        # pdb.set_trace()
+        # plt.close()
+        # print('whoops')
         size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
         n_noise_ = list(labels).count(-1)
         # print("Estimated number of clusters: %d" % n_clusters_)
@@ -85,7 +102,7 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
                 ax[1].scatter( pos[0,labels==jc], pos[2,labels==jc], color=colors[jc], label=jc, s=2, alpha=0.3)
                 ax[2].scatter( pos[1,labels==jc], pos[2,labels==jc], color=colors[jc], label=jc, s=2, alpha=0.3)
                 # plot com
-                com = np.mean( pos[:,labels==jc], axis=1)
+                com = calc_com_pbc( pos[:,labels==jc].transpose(), box_size)
                 ax[0].scatter( [com[0]],[com[1]],color=colors[jc],marker='x',s=20)
                 ax[1].scatter( [com[0]],[com[2]],color=colors[jc],marker='x',s=20)
                 ax[2].scatter( [com[1]],[com[2]],color=colors[jc],marker='x',s=20)
@@ -99,7 +116,9 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
 
     plt.close()
     return labels_all
+# }}}
 
+# cluster_shape_analysis_extent {{{
 def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=False, datapath=None):
     """ cluster shape analysis extent """
 
@@ -142,12 +161,14 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
         # save ratio to h5py
         datapath.create_dataset('xlinker/cluster_extent_xyz', data=std, dtype='f')
     return labels
+# }}}
 
-def cluster_shape_analysis(pos, labels, box_size, datapath=None):
+# cluster_shape_analysis {{{
+def cluster_shape_analysis(pos0, pos1, labels, box_size, datapath=None):
     """ cluster shape analysis """
 
     # frames
-    frames = np.arange(pos.shape[2])
+    frames = np.arange(pos0.shape[2])
 
     # Find shape parameters
     rg2 = []
@@ -157,8 +178,10 @@ def cluster_shape_analysis(pos, labels, box_size, datapath=None):
     for jframe in frames:
         n_clusters_ = len(set(labels[:,jframe])) - (1 if -1 in labels else 0)
         for jc in range(n_clusters_):
-            cpos = pos[:,labels[:,jframe]==jc, jframe]
-            _,G_data = calc_gyration_tensor3d_pbc(cpos.transpose(), box_size)
+            p0 = pos0[:,labels[:,jframe]==jc, jframe]
+            p1 = pos1[:,labels[:,jframe]==jc, jframe]
+            pos_sampled = np.linspace(p0, p1, 5, axis=1).reshape((p0.shape[0], -1), order='F')
+            _,G_data = calc_gyration_tensor3d_pbc(pos_sampled.transpose(), box_size)
             asphericity.append( G_data["asphericity"])
             acylindricity.append( G_data["acylindricity"])
             anisotropy.append( G_data["shape_anisotropy"])
@@ -169,3 +192,64 @@ def cluster_shape_analysis(pos, labels, box_size, datapath=None):
         datapath.create_dataset('xlinker/acylindricity', data=acylindricity, dtype='f')
         datapath.create_dataset('xlinker/anisotropy', data=anisotropy, dtype='f')
         datapath.create_dataset('xlinker/rg2', data=rg2, dtype='f')
+# }}}
+
+# cluster_radial_distances {{{
+def cluster_radial_distances(pos0, pos1, labels, box_size, save=False, savepath=None, datapath=None):
+    """ cluster radial distances"""
+
+    # frames
+    frames = np.arange(pos0.shape[2])
+
+    # com
+    pos_com = (pos0+pos1)/2
+    
+    # bins
+    bins = np.linspace(0,0.5,201)
+
+    DD = np.zeros( (len(bins)-1, len(frames)))
+
+    # For each cluster, compute distances from c.o.m of cluster
+    for jframe in frames:
+        n_clusters_ = len(set(labels[:,jframe])) - (1 if -1 in labels else 0)
+        for jc in range(n_clusters_):
+            p0 = pos0[:,labels[:,jframe]==jc, jframe]
+            p1 = pos1[:,labels[:,jframe]==jc, jframe]
+            pos_sampled = np.linspace(p0, p1, 5, axis=1).reshape((p0.shape[0], -1), order='F')
+            com = calc_com_pbc( pos_com[:,labels[:,jframe]==jc, jframe].transpose(), box_size)
+            
+            # Distance from C.O.M
+            d_xyz = pos_sampled-com.reshape(-1,1)
+            for jdim in range(len(com)):
+                d_xyz[jdim,:][ d_xyz[jdim,:] < -0.5*box_size[jdim] ] += box_size[jdim]
+                d_xyz[jdim,:][ d_xyz[jdim,:] > 0.5*box_size[jdim] ] -= box_size[jdim]
+            distances = np.linalg.norm(d_xyz, axis=0)
+            DD[:,jframe] += np.histogram(distances,bins)[0]
+        DD[:,jframe] = DD[:,jframe] / np.sum( DD[:,jframe])
+
+    if save and savepath is not None:
+        fig,(ax,ax2) = plt.subplots(1,2,figsize=(8,3))
+        im = ax.imshow(DD.T, cmap='viridis', interpolation='gaussian', 
+                aspect='auto', vmin=0, 
+                extent=[bins[0],bins[-1],0,frames[-1]])
+        ax.set(ylabel='Frame', xlabel=r'Distance from cluster COM ($\mu m$)')
+        ax.set_xticks(np.arange(0,bins[-1]+0.0001,0.1))
+        plt.colorbar(im, ax=ax, label='Probability density')
+        
+        ax2.plot( 0.5*(bins[1:]+bins[:-1]), np.mean(DD,axis=1), color='k',label='PDF', linewidth=2)
+        rmax_idx = np.where( np.mean(DD,axis=1) == np.max( np.mean(DD,axis=1) ))[0][0]
+        rmax = np.around(np.mean(bins[rmax_idx:rmax_idx+2]),4)
+        ax2.axvline( rmax, color='k', linestyle='dotted', label=r'Peak = {0:.4f} $\mu m$'.format(rmax) )
+        ax2.set(ylabel='Probability density', xlabel=r'Distance from cluster COM ($\mu m$)')
+        ax2.set_xticks(np.arange(0,bins[-1]+0.0001,0.1))
+        ax2.set_ylim(top=ax2.get_ylim()[1]*1.2)
+        ax2.legend(loc='upper right', frameon=False)
+
+        plt.tight_layout()
+        plt.savefig(savepath, bbox_inches="tight")
+        plt.close()
+        
+    if datapath is not None:
+        datapath.create_dataset('xlinker/com_dist_val', data=0.5*(bins[1:]+bins[:-1]), dtype='f')
+        datapath.create_dataset('xlinker/com_dist_pdf', data=np.mean(DD,axis=1), dtype='f')
+# }}}

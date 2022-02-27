@@ -1,6 +1,8 @@
 import numpy as np
 import random
 from matplotlib import pyplot as plt
+# import tidynamics
+import pdb
 
 # Plotting
 def PlotMSD(FData, savepath):
@@ -31,6 +33,7 @@ def PlotMSD(FData, savepath):
 
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
+    plt.close()
 
 def autocorrFFT(x):
     N=len(x)
@@ -78,4 +81,11 @@ def calc_msd_fft(pos):
     # Loop over trajectories
     for jtraj in range( pos.shape[1] ):
         msd[jtraj, :] = msd_fft(pos[:,jtraj,:].transpose())
+        # msd1 = msd_fft(pos[:,jtraj,:].transpose())
+        # msd[jtraj,:] = tidynamics.msd(pos[:,jtraj,:].transpose())
+        # pdb.set_trace()
+        # plt.plot(msd1,color='r'); plt.plot(msd2,color='b'); plt.show()
     return msd
+
+# def calc_msd_brute(pos):
+

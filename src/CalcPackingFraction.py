@@ -2,6 +2,8 @@ from numba import njit
 import numpy as np
 import src.decorators
 from src.DataHandler import *
+# import decorators
+# from DataHandler import *
 import pdb
 import scipy.spatial.ckdtree
 import math
@@ -60,6 +62,7 @@ def calc_local_packing_fraction( c0, c1, diameter, boxsize):
     return pf
 
 @src.decorators.timer
+# @decorators.timer
 # @njit(parallel=True)
 def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
     """
@@ -81,7 +84,9 @@ def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
     # ensure points are within boxsize
     for jdim in range(cs.shape[0]):
         cs[jdim, cs[jdim,:]< 0] +=boxsize[jdim]
-        cs[jdim, cs[jdim,:]> boxsize[jdim]] -=boxsize[jdim]
+        cs[jdim, cs[jdim,:]>= boxsize[jdim]] -= boxsize[jdim]
+        cs[jdim, cs[jdim,:]< 0] +=boxsize[jdim]
+        cs[jdim, cs[jdim,:]>= boxsize[jdim]] -= boxsize[jdim]
     
     # Initialize kdtree
     kdtree = scipy.spatial.cKDTree( cs.transpose(), boxsize=boxsize)

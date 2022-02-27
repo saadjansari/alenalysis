@@ -7,6 +7,13 @@ import pdb
 from src.unfold_trajectories import *
 from src.CalcOrderParametersLocal import * 
 from src.CalcPackingFraction import * 
+from src.CalcOverlaps import minDistBetweenAllFilaments
+from src.CalcContactNumber import calc_contact_number
+# from unfold_trajectories import *
+# from CalcOrderParametersLocal import * 
+# from CalcPackingFraction import * 
+# from CalcOverlaps import minDistBetweenAllFilaments
+# from CalcContactNumber import calc_contact_number
 
 # DataSeries {{{
 class DataSeries:
@@ -22,7 +29,14 @@ class DataSeries:
     # Center of Mass
     def get_com(self):
     # get center of mass of filaments
-        return 0.5*(self.pos_plus_ + self.pos_minus_)
+
+        com = 0.5*(self.pos_plus_ + self.pos_minus_)
+        # # Apply PBC
+        # pdb.set_trace()
+        # for jdim,bs in enumerate(self.config_['box_size']):
+            # com[jdim,:,:][com[jdim,:,:] <= -0.5*bs] += bs
+            # com[jdim,:,:][com[jdim,:,:] > 0.5*bs] -= bs
+        return com
     
     # Unfold trajectories {{{
     def unfold_trajectory(self, obj_index, which_end):
@@ -71,22 +85,79 @@ class FilamentSeries(DataSeries):
         super().__init__(gid, pos_minus, pos_plus, config)
         self.orientation_ = orientation     # size 3 x N x T
         self.nfil_ = self.pos_plus_.shape[1]
+        self.min_dist_calculated = False
+        self.local_order_calculated = False
 
     # Methods:
     # Local Structure {{{
-    def CalcLocalStructure(self):
-        self.CalcLocalOrder()
-        self.CalcLocalPackingFraction()
+    def CalcLocalStructure(self, N=100):
+        self.CalcMinDist(N)
+        self.CalcLocalOrder(N)
+        # self.CalcLocalPackingFraction(N)
 
     # Local Order {{{
-    def CalcLocalOrder(self, max_dist_ratio=50):
-        self.local_polar_order_, self.local_nematic_order_ = calc_local_order(self.get_com(), self.orientation_, self.config_['box_size'], max_dist_ratio*self.config_['diameter_fil'])
+    def CalcLocalOrder(self, N, max_dist_ratio=50):
+
+        self.local_polar_order_, self.local_nematic_order_ = calc_local_order(
+                self.orientation_[:,:,-1*N:], 
+                self.min_dist_)
+        self.local_order_calculated = True
     # }}}
     
     # Local Packing Fraction {{{
-    def CalcLocalPackingFraction(self, max_dist_ratio=50):
-        self.local_packing_fraction_ = calc_local_packing_fraction(self.pos_minus_, 
-                self.pos_plus_,self.config_['diameter_fil'], self.config_['box_size'])
+    def CalcLocalPackingFraction(self, N, max_dist_ratio=50):
+        self.local_packing_fraction_ = calc_local_packing_fraction(
+                self.pos_minus_[:,:,-1*N:],
+                self.pos_plus_[:,:,-1*N:], 
+                self.config_['diameter_fil'], 
+                self.config_['box_size'])
+    # }}}
+
+    # Min Dist {{{
+    def CalcMinDist(self, N=100):
+        print('Computing minimum distances for last {0} frames'.format(N))
+        self.min_dist_ = np.zeros((self.nfil_, self.nfil_, N))
+
+        for jframe, cframe in enumerate( range(self.nframe_-N,self.nframe_) ):
+
+            print('Frame = {0}/{1}'.format(cframe,self.nframe_), 
+                    end='\r', flush=True )
+        
+            # overlap matrix (normalized by filament diameter)
+            self.min_dist_[:,:,jframe] = minDistBetweenAllFilaments( 
+                    self.pos_minus_[:,:,cframe], 
+                    self.pos_plus_[:,:,cframe], 
+                    self.pos_minus_[:,:,cframe], 
+                    self.pos_plus_[:,:,cframe]) / self.config_['diameter_fil']
+        print('Frame = {0}/{0}'.format(self.nframe_))
+        self.min_dist_calculated = True
+    # }}}
+
+    # Min Dist {{{
+    def CalcMinDistParallel(self, N=100):
+        print('Computing minimum distances for last {0} frames'.format(N))
+        self.min_dist_ = np.zeros((self.nfil_, self.nfil_, N))
+
+        from multiprocessing import Pool, freeze_support, cpu_count
+        import os
+
+        # arguments
+        all_args = [(self.pos_minus_[:,:,i],self.pos_plus_[:,:,i]) for i in range(self.nframe_-N,self.nframe_)]
+        pool = Pool(cpu_count())
+
+        def wrapped_some_function_call(args):
+            """
+            we need to wrap the call to unpack the parameters
+            we build before as a tuple for being able to use pool.map
+            """
+            res = minDistBetweenAllFilaments(*args, *args)
+            return res
+
+        results = pool.map(wrapped_some_function_call, all_args)
+        pdb.set_trace()
+
+        # self.config_['diameter_fil']
+        self.min_dist_calculated = True
     # }}}
     # }}} 
     

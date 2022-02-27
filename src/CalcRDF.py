@@ -4,20 +4,22 @@ from matplotlib import pyplot as plt
 import scipy.spatial.ckdtree
 from scipy.interpolate import RectBivariateSpline
 import time
+from src.decorators import timer
 
 # Plotting
-def PlotRDF(FData, savepath, frame_avg_window=10,**kwargs):
+def PlotRDF(FData, params, frame_avg_window=20,**kwargs):
     """ Plot the RDF for the last N frames"""
     
     frames = np.arange(FData.nframe_-frame_avg_window,FData.nframe_)
-    ends = ['minus','plus','com']
-    cols = ['red','blue','k']
+    # ends = ['minus','plus','com']
+    ends = ['minus','plus']
+    linestyle=['dotted','solid']
 
     # RDF
     print('RDF...') 
     rdf = RDF(FData.config_, **kwargs)
     
-    gr = np.zeros( (len(frames), len(rdf.get_radii()), 3))
+    gr = np.zeros( (len(frames), len(rdf.get_radii()), len(ends)))
     for jend,which_end in enumerate(ends):
         for idx,jframe in enumerate(frames):
 
@@ -26,18 +28,19 @@ def PlotRDF(FData, savepath, frame_avg_window=10,**kwargs):
                 pos = FData.pos_minus_[:,:,jframe]
             elif which_end == 'plus':
                 pos = FData.pos_plus_[:,:,jframe]
-            elif which_end == 'com':
-                pos = FData.get_com()[:,:,jframe]
+            # elif which_end == 'com':
+                # pos = FData.get_com()[:,:,jframe]
             gr[idx,:,jend] = rdf.Compute_v2(pos)
-        # pdb.set_trace()
+
+
     fig,ax = plt.subplots()
     for jend,which_end in enumerate(ends):
         gr_end = gr[:,:,jend]
-        ax.plot(rdf.get_radii(), np.mean(gr_end,axis=0), color=cols[jend], label=which_end)
-        ax.fill_between(rdf.get_radii(),
-                np.mean(gr_end, axis=0) - np.std(gr_end, axis=0),
-                np.mean(gr_end, axis=0) + np.std(gr_end, axis=0),
-                color=cols[jend], alpha=0.2)
+        ax.plot(rdf.get_radii(), np.mean(gr_end,axis=0), linestyle=linestyle[jend], label=which_end, color='k')
+        # ax.fill_between(rdf.get_radii(),
+                # np.mean(gr_end, axis=0) - np.std(gr_end, axis=0),
+                # np.mean(gr_end, axis=0) + np.std(gr_end, axis=0),
+                # color=cols[jend], alpha=0.2)
     # ax.set_xlim(left=-0.01)
     ax.set(xlabel=r'r / $\mu m$')
     ax.set(ylabel=r'$g(r)$', yscale='log')
@@ -45,7 +48,65 @@ def PlotRDF(FData, savepath, frame_avg_window=10,**kwargs):
     ax.legend()
 
     plt.tight_layout()
-    plt.savefig(savepath, bbox_inches="tight")
+    plt.savefig(params['plot_path'] / 'rdf.pdf', bbox_inches="tight")
+    plt.close()
+    
+    # Save data to hdf
+    datapath=params['data_filestream']
+    datapath.create_dataset('filament/rdf_radii', data=rdf.get_radii(), dtype='f')
+    datapath.create_dataset('filament/rdf_plus', data=np.mean(gr[:,:,1],axis=0), dtype='f')
+    datapath.create_dataset('filament/rdf_minus', data=np.mean(gr[:,:,0],axis=0), dtype='f')
+
+# Plotting
+def PlotRDF_PAP(FData, params, frame_avg_window=20,**kwargs):
+    """ Plot the RDF with c.o.m for the last N frames (split parallel and antiparallel filaments"""
+    
+    frames = np.arange(FData.nframe_-frame_avg_window,FData.nframe_)
+    which_end='com'
+
+    types=['Parallel', 'Antiparallel']
+    linestyle=['dotted','solid']
+
+    # RDF
+    print('RDF...') 
+    rdf = RDF(FData.config_, **kwargs)
+    
+    gr = np.zeros( (len(frames), len(rdf.get_radii()), 2))
+    for idx,jframe in enumerate(frames):
+
+        orient = FData.orientation_[:,:,jframe]
+        # positions
+        if which_end == 'minus':
+            pos = FData.pos_minus_[:,:,jframe]
+        elif which_end == 'plus':
+            pos = FData.pos_plus_[:,:,jframe]
+        elif which_end == 'com':
+            pos = FData.get_com()[:,:,jframe]
+        gr[idx,:,0],gr[idx,:,1] = rdf.Compute_v2_PAP(pos, orient)
+
+    fig,ax = plt.subplots()
+    for jidx,jdir in enumerate(types):
+        gr_dir = gr[:,:,jidx]
+        ax.plot(rdf.get_radii(), np.mean(gr_dir,axis=0), linestyle=linestyle[jidx], label=jdir, color='k')
+        # ax.fill_between(rdf.get_radii(),
+                # np.mean(gr_end, axis=0) - np.std(gr_end, axis=0),
+                # np.mean(gr_end, axis=0) + np.std(gr_end, axis=0),
+                # color=cols[jend], alpha=0.2)
+    # ax.set_xlim(left=-0.01)
+    ax.set(xlabel=r'r / $\mu m$')
+    ax.set(ylabel=r'$g(r)$', yscale='log')
+    ax.set(title='RDF: Frame Window = {0}'.format(frame_avg_window))
+    ax.legend(frameon=False)
+
+    plt.tight_layout()
+    plt.savefig(params['plot_path'] / 'rdf_pap.pdf', bbox_inches="tight")
+    plt.close()
+    
+    # Save data to hdf
+    datapath=params['data_filestream']
+    datapath.create_dataset('filament/rdf_radii_pap', data=rdf.get_radii(), dtype='f')
+    datapath.create_dataset('filament/rdf_p', data=np.mean(gr[:,:,0],axis=0), dtype='f')
+    datapath.create_dataset('filament/rdf_pap', data=np.mean(gr[:,:,1],axis=0), dtype='f')
 
 class RDF():
     # Class for computing radial density functions in a variety of geometries.
@@ -63,7 +124,7 @@ class RDF():
         if rcutoff is None:
             rcutoff = 0.7 
         if rmax is None:
-            rmax = 1.0
+            rmax = 40*self.diameter_
         if dr is None:
             dr = 0.1*self.diameter_
         self.rcutoff_ = rcutoff
@@ -94,6 +155,9 @@ class RDF():
         # Get points number density
         num_density = self.calc_number_density(c.shape[1])
 
+        # Ensure PBC for cKDTree
+        c = self.apply_PBC(c)
+
         # Initialize cKDtree
         kdtree = scipy.spatial.cKDTree( c.transpose(), boxsize=self.get_special_boxsize())
         
@@ -108,7 +172,7 @@ class RDF():
             n_max = len(kdtree.query_pairs(r=r+dr))
             N_shell = (n_max-n_min)
 
-            # ensemble averaged number for any given point
+            # Ensemble averaged number for any given point
             N_shell = N_shell/c.shape[1]
             # Pairs are undercounted by factor of 2 (due to set mechanism of ckdtree)
             N_shell *= 2
@@ -121,7 +185,7 @@ class RDF():
             
             # gr
             g_r[r_idx] = shell_density / num_density
-            print('Rmin = {0:.4f}, Rmax = {1:.4f}, Nmin = {2}, Nmax = {3}, g = {4:.2f}'.format(r,r+dr,n_min,n_max, g_r[r_idx]) )
+            # print('Rmin = {0:.4f}, Rmax = {1:.4f}, Nmin = {2}, Nmax = {3}, g = {4:.2f}'.format(r,r+dr,n_min,n_max, g_r[r_idx]) )
             
             # Prep for next shell
             n_min = n_max
@@ -177,7 +241,7 @@ class RDF():
             if self.use_LUT_:
                 if self.LUT_ is None:
                     self.BuildLUT()
-                vol_shell = np.mean(self.table_.ev(r1,z_vals) - self.table_.ev(r0,z_vals))
+                vol_shell = np.mean(self.LUT_.ev(r1,z_vals) - self.LUT_.ev(r0,z_vals))
             else:
                 vol_shells = [ self.vol_shell_confined_planar(r0,r1,
                     zrange[0], zrange[1], zz) for zz in z_vals]
@@ -283,9 +347,13 @@ class RDF():
         # calculated by subtracting caps
         vol_sphere_r = (4/3)*np.pi*(r**3)
         h0_min = z_min - (z-r)
-        h0_min[ h0_min < 0] = 0
+        if h0_min < 0:
+            h0_min = 0
+        # h0_min[ h0_min < 0] = 0
         h0_max = z+r-z_max
-        h0_max[ h0_max < 0] = 0
+        if h0_max < 0:
+            h0_max = 0
+        # h0_max[ h0_max < 0] = 0
         vol = vol_sphere_r - ( (np.pi/3)*(h0_min**2)*(3*r - h0_min)) - ( (np.pi/3)*(h0_max**2)*(3*r - h0_max))
         return vol
 
@@ -316,24 +384,25 @@ class RDF():
             return
         
         radii = self.get_radii()
+        radii = np.hstack( (radii, radii[-1]+(radii[-1]-radii[-2]) ) )
 
         if self.confinement_ == 'cylindrical':
 
             R = self.geometry_['radius']
             b_vals = np.linspace(0.0,1*R,50)
-            self.table_ = self.LUT_cylindrical(R,radii,b_vals)
+            self.LUT_ = self.LUT_cylindrical(R,radii,b_vals)
 
         elif self.confinement_ == 'spherical':
 
             R = self.geometry_['radius']
             d_vals = np.linspace(0.0,1*R,50)
-            self.table_ = self.LUT_spherical(R,radii,d_vals)
+            self.LUT_ = self.LUT_spherical(R,radii,d_vals)
 
         elif self.confinement_ == 'planar':
 
             zrange = self.geometry_['range']
             z_vals = np.linspace(zrange[0],zrange[1],50)
-            self.table_ = self.LUT_planar(zrange,radii,z_vals)
+            self.LUT_ = self.LUT_planar(zrange,radii,z_vals)
 
     @staticmethod
     def LUT_cylindrical(R,r_vals,b_vals):
@@ -427,14 +496,14 @@ class RDF():
     def get_special_boxsize(self):
 
         if self.confinement_ == 'unconfined':
-            box_size_new = self.box_size_
+            box_size_new = np.copy(self.box_size_)
         elif self.confinement_ == 'spherical':
-            box_size_new = 100*self.box_size_
+            box_size_new = np.copy(100*self.box_size_)
         elif self.confinement_ == 'cylindrical':
             cyl_height = self.box_size_[2]
-            boxsize_new = np.array([10*cyl_height, 10*cyl_height, cyl_height])
+            box_size_new = np.array([10*cyl_height, 10*cyl_height, cyl_height])
         elif self.confinement_ == 'planar':
-            boxsize_new = np.array([
+            box_size_new = np.array([
                 self.box_size_[0], self.box_size_[1], 10*np.max(self.box_size_)
                 ])
         return box_size_new
@@ -477,7 +546,7 @@ class RDF():
         # Ensure PBC for cKDTree
         c = self.apply_PBC(c)
         # Initialize cKDtree 1
-        t0 = time.time()
+        # t0 = time.time()
         kdtree1 = scipy.spatial.cKDTree( c.transpose(), boxsize=self.get_special_boxsize())
         # Initialize cKDtree 2
         kdtree2 = scipy.spatial.cKDTree( c.transpose(), boxsize=self.get_special_boxsize())
@@ -505,8 +574,75 @@ class RDF():
         
         # gr
         g_r = shell_density / num_density
-        print('   Time Elapsed = {0:.4f}'.format(time.time() - t0) )
+        # print('   Time Elapsed = {0:.4f}'.format(time.time() - t0) )
         return g_r
+    # }}}
+
+    # Compute V2 PAP {{{
+    def Compute_v2_PAP( self, c, orient):
+        """
+        Calculate the rdf for single time frame using a distance matrix
+        Inputs:
+            c: coorindates 3 x N (where N is number of filaments )
+
+        Pick a (R, R+ dr) value.
+        Find number of points inside that spherical shell.
+        Divide by the volume of the shell
+        Multiply by inverse Point density (i.e System Volume / Number of Pts)
+        """
+        # Radii
+        radii = self.get_radii()
+
+        # Initialize gr array
+        g_r_p = np.zeros(shape=(len(radii)))
+        g_r_ap = np.zeros(shape=(len(radii)))
+
+        # Get points number density
+        num_density = self.calc_number_density(c.shape[1])
+
+        # Ensure PBC for cKDTree
+        c = self.apply_PBC(c)
+        # Initialize cKDtree 1
+        # t0 = time.time()
+        kdtree1 = scipy.spatial.cKDTree( c.transpose(), boxsize=self.get_special_boxsize())
+        # Initialize cKDtree 2
+        kdtree2 = scipy.spatial.cKDTree( c.transpose(), boxsize=self.get_special_boxsize())
+
+        # Bins! Add aditional entry to radii for this calculation
+        bins = np.zeros(len(radii)+1)
+        bins[:-1] = radii
+        bins[-1] = radii[-1]+(radii[1]-radii[0])
+
+        # Get bin counts for radii in bins using distance matrix of ckdtree
+        dmat = kdtree1.sparse_distance_matrix(kdtree2, 1.1*bins[-1], output_type='coo_matrix').toarray()
+        vals = dmat[np.triu_indices_from(dmat, k = 1)]
+        vals[vals==0] = 100*bins[-1]
+
+        # Find orientaion dot products
+        cosTheta = np.tensordot(orient,orient,axes=((0),(0)))
+        orients_dp = cosTheta[np.triu_indices_from(cosTheta, k = 1)]
+
+        # Split data between cosTheta > 0, cosTheta<0
+        # ensemble averaged number for any given point
+        N_shell_P = np.histogram(vals[orients_dp>=0], bins=bins)[0]/c.shape[1]
+        N_shell_AP = np.histogram(vals[orients_dp<0], bins=bins)[0]/c.shape[1]
+
+        # Pairs are undercounted by factor of 2 (due to set mechanism of ckdtree)
+        N_shell_P *= 2
+        N_shell_AP *= 2
+
+        # Extract mean shell volume for each bin
+        vol_shell = self.get_shell_volume_v2(c,bins)
+
+        # Density in shell
+        shell_density_P = (N_shell_P/vol_shell)
+        shell_density_AP = (N_shell_AP/vol_shell)
+        
+        # gr
+        g_r_p = shell_density_P / num_density
+        g_r_ap = shell_density_AP / num_density
+        # print('   Time Elapsed = {0:.4f}'.format(time.time() - t0) )
+        return g_r_p, g_r_ap
     # }}}
 
     # Get Shell Volume V2 {{{
@@ -570,7 +706,7 @@ class RDF():
                 if self.use_LUT_:
                     if self.LUT_ is None:
                         self.BuildLUT()
-                    vol_shell[jr] = np.mean(self.table_.ev(r1,z_vals) - self.table_.ev(r0,z_vals))
+                    vol_shell[jr] = np.mean(self.LUT_.ev(r1,z_vals) - self.LUT_.ev(r0,z_vals))
                 else:
                     vol_shells = [ self.vol_shell_confined_planar(r0,r1,
                     zrange[0], zrange[1], zz) for zz in z_vals]
@@ -578,3 +714,4 @@ class RDF():
 
         return vol_shell
     # }}}
+

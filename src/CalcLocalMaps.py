@@ -3,14 +3,17 @@ import random, pdb, os
 from matplotlib import pyplot as plt
 import scipy.spatial.ckdtree
 from scipy.interpolate import UnivariateSpline
+from scipy.spatial.distance import cdist, squareform
 import time
 from mpl_toolkits.mplot3d import Axes3D
 import shutil
 from pathlib import Path
 import mpmath
 from numba import njit
+import src.decorators
 
 # Plotting
+# PlotPackingFraction {{{
 def PlotPackingFraction(FData, savepath, N=20, **kwargs):
     """ Plot the Packing Fraction for the last N frames"""
     
@@ -20,21 +23,79 @@ def PlotPackingFraction(FData, savepath, N=20, **kwargs):
     frames = np.arange(FData.nframe_-N,FData.nframe_)
 
     # Initialize map
-    densityMap = LocalMap(FData.config_)
+    densityMap = LocalMap(FData.config_,rad_scaling=2.0)
 
     # Packing Fraction
     # Initialize density
-    rho = 0*densityMap.ComputePF(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1])
+    rho = 0*densityMap.ComputePF_v2(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1])
+    # rho = 0*densityMap.ComputePF(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1])
+    rho = np.zeros( ( [rho.shape[0], rho.shape[1], rho.shape[2], N]) )
 
     # Loop over frames
-    for jframe in frames:
-        rho += densityMap.ComputePF(FData.pos_minus_[:,:,jframe], FData.pos_plus_[:,:,jframe])
-    rho = rho/len(frames)
+    for idx,jframe in enumerate(frames):
+        rho[:,:,:,idx] = densityMap.ComputePF_v2(FData.pos_minus_[:,:,jframe], FData.pos_plus_[:,:,jframe])
+    rho_mu = np.mean(rho, axis=-1)
+    rho_med = np.median(rho, axis=-1)
 
     # Plot
-    densityMap.PlotTest(rho, 'Packing Fraction', savepath, vmin=0, vmax=0.50, **kwargs)
-    
+    # densityMap.PlotTest(rho_mu, 'Packing Fraction', savepath, **kwargs)
+    # pdb.set_trace()
+    densityMap.PlotTest(rho_mu, 'Packing Fraction', savepath, vmin=0.0, vmax=0.40, **kwargs)
+# }}} 
 
+# PlotNumberDensity {{{
+def PlotNumberDensity(FData, savepath, N=20, **kwargs):
+    """ Plot the Number density for the last N frames"""
+    
+    print('Number density Local Map...') 
+
+    # Get last N frames
+    frames = np.arange(FData.nframe_-N,FData.nframe_)
+
+    # Initialize map
+    densityMap = LocalMap(FData.config_,rad_scaling=2.0)
+
+    # Number Density
+    # Initialize density
+    nd = 0*densityMap.ComputeND(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1])
+    nd = np.zeros( ( [nd.shape[0], nd.shape[1], nd.shape[2], N]) )
+
+    # Loop over frames
+    for idx,jframe in enumerate(frames):
+        nd[:,:,:,idx] = densityMap.ComputeND(FData.pos_minus_[:,:,jframe], FData.pos_plus_[:,:,jframe])
+    nd_mu = np.mean(nd, axis=-1)
+
+    # Plot
+    densityMap.PlotTest(nd_mu, 'Number Density', savepath, **kwargs)
+# }}}
+
+# PlotNumberDensityXlink {{{
+def PlotNumberDensityXlink(FData, XData, savepath, N=10, **kwargs):
+    """ Plot the Number density for crosslinkers for the last N frames"""
+    
+    print('Number density xlink Local Map...') 
+
+    # Get last N frames
+    frames = np.arange(FData.nframe_-N,FData.nframe_)
+
+    # Initialize map
+    densityMap = LocalMap(FData.config_,rad_scaling=2.0)
+
+    # Number Density
+    # Initialize density
+    nd = 0*densityMap.ComputeND(XData.pos_minus_[:,:,-1], XData.pos_plus_[:,:,-1])
+    nd = np.zeros( ( [nd.shape[0], nd.shape[1], nd.shape[2], N]) )
+
+    # Loop over frames
+    for idx,jframe in enumerate(frames):
+        nd[:,:,:,idx] = densityMap.ComputeND(XData.pos_minus_[:,:,jframe], XData.pos_plus_[:,:,jframe])
+    nd_mu = np.mean(nd, axis=-1)
+
+    # Plot
+    densityMap.PlotTest(nd_mu, 'Number Density', savepath, **kwargs)
+# }}}
+
+# PlotSOrder {{{
 def PlotSOrder(FData, savepath, N=5, **kwargs):
     """ Plot the Nematic Order for the last N frames"""
     
@@ -56,8 +117,9 @@ def PlotSOrder(FData, savepath, N=5, **kwargs):
 
     # Plot
     densityMap.PlotTest(Sdensity, 'Nematic Order', savepath, vmin=0, vmax=1,**kwargs)
-    
+# }}} 
 
+# PlotPOrder {{{
 def PlotPOrder(FData, savepath, N=5, **kwargs):
     """ Plot the Polar Order for the last N frames"""
     
@@ -79,7 +141,9 @@ def PlotPOrder(FData, savepath, N=5, **kwargs):
 
     # Plot
     densityMap.PlotTest(Pdensity, 'Polar Order', savepath, vmin=-1, vmax=1,**kwargs)
+# }}} 
 
+# PlotFlux{{{
 def PlotFlux(FData, savepath, N=5, **kwargs):
     """ Plot the Flux for the last N frames"""
     
@@ -101,7 +165,9 @@ def PlotFlux(FData, savepath, N=5, **kwargs):
 
     # Plot
     densityMap.PlotTest(Flux, 'Flux', savepath, **kwargs)
+# }}} 
 
+# PlotOrientation{{{
 def PlotOrientation(FData, savepath, N=1, **kwargs):
     """ Plot the Orientation for the last N frames"""
     
@@ -125,7 +191,9 @@ def PlotOrientation(FData, savepath, N=1, **kwargs):
 
     # Plot
     densityMap.PlotOrientation(ort, savepath, **kwargs)
+# }}} 
 
+# PlotNematicDirector {{{
 def PlotNematicDirector(FData, savepath, N=1, **kwargs):
     """ Plot the Nematic Director for the last N frames"""
     
@@ -147,6 +215,7 @@ def PlotNematicDirector(FData, savepath, N=1, **kwargs):
 
     # Plot
     densityMap.PlotNematicDirector(ort, savepath, **kwargs)
+# }}} 
 
 # LocalMap {{{
 class LocalMap():
@@ -165,27 +234,57 @@ class LocalMap():
         self.BuildLUT()
         self.LUT_ = None
 
-        # Special region
+        # Special region {{{
         self.zoom_cyl = True
-        self.z_low = 21
-        self.z_high = 22
-        # self.z_low = -0.25
-        # self.z_high = 1.75 
-        # self.z_low = -0.25
-        # self.z_high = 1.75 
+        if self.confinement_ == 'cylindrical':
+            # C1
+            if self.geometry_['radius']/(5*self.diameter_) < 2:
+                self.z_low = 19.75
+                self.z_high = 21.75
+            # C2
+            elif self.geometry_['radius']/(5*self.diameter_) < 3:
+                self.z_low = 9.15 
+                self.z_high = 11.15
+            # C3
+            elif self.geometry_['radius']/(5*self.diameter_) > 3:
+                self.z_low = -0.2
+                self.z_high = 1.8 
+        elif self.confinement_ == 'planar':
+            # P1
+            if np.diff(self.geometry_['range'])[0]/(10*self.diameter_) < 2:
+                self.x_low = 1.1
+                self.x_high = 3.1
+                self.y_low = 0.6
+                self.y_high = 2.6
+            # P2
+            elif np.diff(self.geometry_['range'])[0]/(10*self.diameter_) < 3:
+                self.x_low = -0.1 
+                self.x_high = 1.9
+                self.y_low = -0.1
+                self.y_high = 1.9
+            # P3
+            elif np.diff(self.geometry_['range'])[0]/(10*self.diameter_) > 3:
+                self.x_low = 0.4 
+                self.x_high = 2.4
+                self.y_low = -0.6
+                self.y_high = 1.4
+        # }}}
 
     # Compute Packing Fraction {{{
+    @src.decorators.timer
     def ComputePF( self, pos_minus, pos_plus):
         """
         Calculate the packing fraction for single time frame
         """
 
         # search radius
-        rad = self.search_radius_
+        rad = self.get_search_radius_()
 
         # sample points
         xv,yv,zv = self.GetSamplePoints()
         pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        pos = self.apply_PBC(pos)
+        pos_tup = tuple(pos.transpose())
 
         # Get Sample Positions and Volumes, idx_in_original
         pos_sample, vol_sample,_ = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -195,10 +294,16 @@ class LocalMap():
         vol_search = self.get_search_volume(pos,rad).reshape(xv.shape)
 
         # Initialize cKDtree
+        bs = self.get_special_boxsize()
         kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
        
         # INitiliaze packing fraction
         pf = np.zeros_like(xv)
+
+        # # Put pos_c inside periodic box
+        # neighbors_all = kdtree.query_ball_point( pos_tup, r=rad)
+
+        # 
 
         # Loop over sample points
         for jx in np.arange(xv.shape[0]):
@@ -206,17 +311,152 @@ class LocalMap():
                 for jz in np.arange(xv.shape[2]):
 
                     pos_c = np.array([xv[jx,jy,jz],yv[jx,jy,jz],zv[jx,jy,jz]])
+                    pos_c = self.apply_PBC(pos_c.reshape(-1,1))[:,0]
+
+                    # # Put pos_c inside periodic box
                     neighbors = kdtree.query_ball_point( pos_c, r=rad)
+                    # neighbors = neighbors_all
+                    
+                    # find distance to neighbors
+                    if len(neighbors)>0:
+                        dd0 = np.linalg.norm(pos_c.reshape(-1,1)-pos_sample[:,neighbors], axis=0)
+                        dd1 = cdist_pbc(pos_c, pos_sample[:,neighbors].T, self.get_special_boxsize())
+                        # if np.max( np.abs(dd0-dd1)) > 0.0001:
+                            # pdb.set_trace()
+                        vol_scaling = 1-np.clip( ((dd1+self.get_diameter_()/2)-rad )/self.get_diameter_(), 0, 1).reshape(-1)
+                        # Calculate volume occupied by neighbors
+                        vol_neighbors = 0
+                        for idx,neigh in enumerate(neighbors):
+                            vol_neighbors += vol_scaling[idx]*vol_sample[neigh]
 
-                    # Calculate volume occupied by neighbors
-                    vol_neighbors = 0
-                    for neigh in neighbors:
-                        vol_neighbors += vol_sample[neigh]
-
-                    # Packing fraction
-                    pf[jx,jy,jz] = vol_neighbors/vol_search[jx,jy,jz]
-
+                        # Packing fraction
+                        if vol_search[jx,jy,jz] > 0:
+                            pf[jx,jy,jz] = vol_neighbors/vol_search[jx,jy,jz]
         return pf
+    # }}}
+
+    # Compute Packing Fraction v2 {{{
+    @src.decorators.timer
+    def ComputePF_v2( self, pos_minus, pos_plus):
+        """
+        Calculate the packing fraction for single time frame
+        """
+
+        # search radius
+        rad = self.get_search_radius_()
+
+        # sample points
+        xv,yv,zv = self.GetSamplePoints()
+        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        pos = self.apply_PBC(pos)
+        pos_tup = tuple(pos.transpose())
+
+        # INitiliaze packing fraction
+        pf = np.zeros_like(xv)
+
+        # Get Sample Positions and Volumes, idx_in_original
+        pos_sample, vol_sample,_ = self.SampleFilamentLength(pos_plus, pos_minus)
+        pos_sample = self.apply_PBC(pos_sample)
+
+        # Find search volume for all sample points (full sphere, or sphere intersection with geometry)
+        vol_search = self.get_search_volume(pos,rad).reshape(xv.shape)
+
+        # Initialize cKDtree
+        bs = self.get_special_boxsize()
+        kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
+        # kdtree_grid = scipy.spatial.cKDTree( pos.transpose(), boxsize=self.get_special_boxsize())
+        # dists = kdtree_grid.sparse_distance_matrix(kdtree, rad)
+
+        # Put pos_c inside periodic box
+        neighbors_all = kdtree.query_ball_point( pos_tup, r=rad)
+
+        # Loop over sample points
+        xv,yv,zv = np.meshgrid(np.arange(xv.shape[0]),
+                np.arange(yv.shape[1]),
+                np.arange(zv.shape[2]),indexing='ij')
+        xv = xv.flatten()
+        yv = yv.flatten()
+        zv = zv.flatten()
+
+        for idx in np.arange(pos.shape[1]):
+
+            neighbors = neighbors_all[idx]
+            if len(neighbors) == 0:
+                continue
+
+            jx = xv[idx]
+            jy = yv[idx]
+            jz = zv[idx]
+
+            # find distance to neighbors
+            dd1 = cdist_pbc(pos[:,idx], pos_sample[:,neighbors].T, self.get_special_boxsize())
+            vol_scaling = 1-np.clip( ((dd1+self.get_diameter_()/2)-rad )/self.get_diameter_(), 0, 1).reshape(-1)
+            # vol_scaling = np.array(vol_scaling[0,:]).reshape(-1)
+
+            # Calculate volume occupied by neighbors
+            vol_neighbors = np.sum(vol_scaling*vol_sample[neighbors])
+
+            # Packing fraction
+            if vol_search[jx,jy,jz] > 0:
+                pf[jx,jy,jz] = vol_neighbors/vol_search[jx,jy,jz]
+        pf = self.mask_geometry(pf)
+        return pf
+    # }}}
+
+    # Number Density {{{
+    @src.decorators.timer
+    def ComputeND( self, pos_minus, pos_plus):
+        """
+        Calculate the number density for single time frame
+        """
+
+        # search radius
+        rad = self.get_search_radius_()
+
+        # sample points
+        xv,yv,zv = self.GetSamplePoints()
+        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        pos = self.apply_PBC(pos)
+        pos_tup = tuple(pos.transpose())
+
+        # INitiliaze ND 
+        nd = np.zeros_like(xv)
+
+        # Get Sample Positions and Volumes, idx_in_original
+        pos_sample, _,idx_sample = self.SampleFilamentLength(pos_plus, pos_minus)
+        pos_sample = self.apply_PBC(pos_sample)
+
+        # Find search volume for all sample points (full sphere, or sphere intersection with geometry)
+        vol_search = self.get_search_volume(pos,rad).reshape(xv.shape)
+
+        # Initialize cKDtrees
+        bs = self.get_special_boxsize()
+        kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
+
+        # Put pos_c inside periodic box
+        neighbors_all = kdtree.query_ball_point( pos_tup, r=rad)
+
+        # Loop over sample points
+        xv,yv,zv = np.meshgrid(np.arange(xv.shape[0]),
+                np.arange(yv.shape[1]),
+                np.arange(zv.shape[2]),indexing='ij')
+        xv = xv.flatten()
+        yv = yv.flatten()
+        zv = zv.flatten()
+
+        for idx in np.arange(pos.shape[1]):
+
+            neighbors = neighbors_all[idx]
+            jx = xv[idx]
+            jy = yv[idx]
+            jz = zv[idx]
+
+            # NUmber density 
+            if len(neighbors) > 0 and vol_search[jx,jy,jz] > 0:
+                nd[jx,jy,jz] = np.unique( idx_sample[neighbors]).size/vol_search[jx,jy,jz]
+
+        nd = self.mask_geometry(nd)
+        return nd
     # }}}
 
     # Compute Nematic Order {{{
@@ -456,22 +696,27 @@ class LocalMap():
     # SampleFilamentLength {{{
     def SampleFilamentLength(self, pos_plus, pos_minus):
 
+        # diameter
+        dd = self.get_diameter_()
         # Filament Lengths
         fil_len = np.linalg.norm(pos_plus - pos_minus, axis=0)
         fil_len_max = np.max(fil_len)
         
         # number of sampling points
-        n_samples = 1*int(np.ceil(fil_len_max / self.diameter_) )
+        n_samples = 1*int(np.ceil(fil_len_max / dd) )
 
         # length of sample point for each filament
         len_sample_filament = fil_len / n_samples
 
-        # volume of sample point for each filament
-        vol_sample_filament = np.pi*len_sample_filament*(self.diameter_/2)**2
+        # volume of sample point for each filament (bulk, and end)
+        vol_sample_filament_bulk = np.pi*len_sample_filament*(dd/2)**2
+        vol_sample_filament_end = np.pi*(len_sample_filament/2)*(dd/2)**2 + (4/6)*np.pi*(dd/2)**3
 
         # Break each filament into cylinders with diameter and height equal to the filament diameter
         pos_sampled = np.linspace(pos_minus, pos_plus, n_samples, axis=1).reshape((pos_minus.shape[0], -1), order='F')
-        vol_sampled = np.repeat(vol_sample_filament,n_samples)
+        vol_sampled = np.repeat(vol_sample_filament_bulk,n_samples)
+        vol_sampled[0::n_samples] = vol_sample_filament_end
+        vol_sampled[n_samples-1::n_samples] = vol_sample_filament_end
 
         idx_in_original = np.repeat(np.arange(pos_plus.shape[1]),n_samples)
 
@@ -484,41 +729,63 @@ class LocalMap():
         # Points will sample a 3D rectangular region for each geometry
 
         # Point spacing
-        width = 2*self.diameter_
+        width = self.get_diameter_()
 
         # Get lower and upper bound for rectangular region
         if self.confinement_ == 'unconfined':
-            bs_low = np.array([0,0,0])
-            bs_high = self.box_size_
+            bs_low = np.array([0,0,0], dtype=np.float32)
+            bs_high = self.get_box_size_()
             
         if self.confinement_ == 'planar':
-            zrange = np.array( self.geometry_['range'] )
-            bs_low = np.array([0,0,0])
-            bs_high = self.box_size_
+            zrange = np.copy( np.array( self.geometry_['range'] ) )
+            bs_low = np.array([0,0,0], dtype=np.float32)
+            bs_high = self.get_box_size_()
             bs_low[-1] = zrange[0]
             bs_high[-1] = zrange[1]
+            if self.zoom_cyl:
+                bs_low[0] = self.x_low
+                bs_high[0] = self.x_high
+                bs_low[1] = self.y_low
+                bs_high[1] = self.y_high
 
         if self.confinement_ == 'cylindrical':
             center = np.array(self.geometry_['center'])
             radius = self.geometry_['radius']
-            bs_low = np.array(center-1.1*radius)
-            bs_high = np.array(center+1.1*radius)
+            bs = self.get_box_size_()
+            bs_low = np.array(center-0.9*radius)-10**-6
+            bs_high = np.array(center+0.9*radius)+10**-6
+
+            d_unitless = int(2*radius/width)
             if self.zoom_cyl:
                 bs_low[-1] = self.z_low
                 bs_high[-1] = self.z_high
             else:
                 bs_low[-1] = 0
-                bs_high[-1] = self.box_size_[-1]
+                bs_high[-1] = bs[-1]
+            xx = center[0] + width*(np.arange(d_unitless)-(d_unitless-1)/2)
+            yy = center[1] + width*(np.arange(d_unitless)-(d_unitless-1)/2)
+            zz = np.arange(bs_low[2], bs_high[2], width)
+            xv,yv,zv = np.meshgrid(xx,yy,zz,indexing='ij')
+            return xv,yv,zv
 
         if self.confinement_ == 'spherical':
             center = np.array(self.geometry_['center'])
             radius = self.geometry_['radius']
-            bs_low = np.array(center-1.1*radius)
-            bs_high = np.array(center+1.1*radius)
+            d_unitless = int(2*radius/width)
+            xx = center[0] + width*(np.arange(d_unitless)-(d_unitless-1)/2)
+            yy = center[1] + width*(np.arange(d_unitless)-(d_unitless-1)/2)
+            zz = center[2] + width*(np.arange(d_unitless)-(d_unitless-1)/2)
+            xv,yv,zv = np.meshgrid(xx,yy,zz,indexing='ij')
+            return xv,yv,zv
+            # bs_low = np.array(center-0.9*radius)-10**-6
+            # bs_high = np.array(center+0.9*radius)+10**-6
         
         xx = np.arange(bs_low[0], bs_high[0], width)
         yy = np.arange(bs_low[1], bs_high[1], width)
         zz = np.arange(bs_low[2], bs_high[2], width)
+        
+        # Apply PBC here
+        bs = self.get_special_boxsize()
         xv,yv,zv = np.meshgrid(xx,yy,zz,indexing='ij')
         return xv,yv,zv
     # }}}
@@ -527,15 +794,16 @@ class LocalMap():
     def get_special_boxsize(self):
 
         if self.confinement_ == 'unconfined':
-            box_size_new = self.box_size_
+            box_size_new = self.get_box_size_()
         elif self.confinement_ == 'spherical':
-            box_size_new = 100*self.box_size_
+            box_size_new = 100*self.get_box_size_()
         elif self.confinement_ == 'cylindrical':
-            cyl_height = self.box_size_[2]
+            cyl_height = self.get_box_size_()[2]
             box_size_new = np.array([10*cyl_height, 10*cyl_height, cyl_height])
         elif self.confinement_ == 'planar':
+            bs = self.get_box_size_()
             box_size_new = np.array([
-                self.box_size_[0], self.box_size_[1], 10*np.max(self.box_size_)
+                bs[0], bs[1], 10*np.max(bs)
                 ])
         return box_size_new
     # }}}
@@ -695,13 +963,13 @@ class LocalMap():
         if self.confinement_ == 'cylindrical':
 
             R = self.geometry_['radius']
-            b_vals = np.linspace(0.0,1*R,50)
+            b_vals = np.linspace(0.0,1.1*R,100)
             self.LUT_ = self.LUT_cylindrical(R,radii,b_vals)
 
         elif self.confinement_ == 'spherical':
 
             R = self.geometry_['radius']
-            d_vals = np.linspace(0.0,1*R,50)
+            d_vals = np.linspace(0.0,1.1*R,100)
             self.LUT_ = self.LUT_spherical(R,radii,d_vals)
 
         elif self.confinement_ == 'planar':
@@ -768,6 +1036,8 @@ class LocalMap():
         bs = self.get_special_boxsize()
         for jdim in range(pos.shape[0]):
             pos[jdim, pos[jdim,:] < 0] += bs[jdim]
+            pos[jdim, pos[jdim,:] < 0] += bs[jdim]
+            pos[jdim, pos[jdim,:] > bs[jdim]] -= bs[jdim]
             pos[jdim, pos[jdim,:] > bs[jdim]] -= bs[jdim]
         return pos
     # }}}
@@ -803,11 +1073,16 @@ class LocalMap():
         ye = np.around([np.min(yv.flatten()), np.max(yv.flatten())],2)
         ze = np.around([np.min(zv.flatten()), np.max(zv.flatten())],2)
 
+        # Dump to csv
+        dat = np.vstack((xv.flatten(), yv.flatten(), zv.flatten(),data.flatten())).transpose()
+        np.savetxt(savepath.parent/'pf_data.csv', dat, delimiter=',')
+
         # 2D histograms (XY,XZ,YZ)
         fig,axs = plt.subplots(1,3, figsize=(12,3))
 
         # XY
-        im0 = axs[0].imshow(np.mean(data,axis=2).transpose(), 
+        idx0 = np.arange( int((data.shape[2]-1)/2), 3+int((data.shape[2]-1)/2))
+        im0 = axs[0].imshow(np.mean(data[:,:,idx0],axis=2).transpose(), 
                 cmap=colormap, interpolation='quadric', 
                 origin='lower', vmin=vmin, vmax=vmax,
                 extent=( xe[0], xe[1], ye[0], ye[1]) )
@@ -817,7 +1092,8 @@ class LocalMap():
         axs[0].set_yticks(ye)
         
         # XZ
-        im1 = axs[1].imshow(np.mean(data,axis=1).transpose(), 
+        idx0 = np.arange( int((data.shape[1]-1)/2), 3+int((data.shape[1]-1)/2))
+        im1 = axs[1].imshow(np.mean(data[:,idx0,:],axis=1).transpose(), 
                 cmap=colormap, interpolation='quadric', 
                 origin='lower', vmin=vmin, vmax=vmax,
                 extent=( xe[0], xe[1], ze[0], ze[1]) )
@@ -827,11 +1103,12 @@ class LocalMap():
         axs[1].set_yticks(ze)
 
         # YZ
-        im2 = axs[2].imshow(np.mean(data,axis=0).transpose(), 
+        idx0 = np.arange( int((data.shape[0]-1)/2), 3+int((data.shape[0]-1)/2))
+        im2 = axs[2].imshow(np.mean(data[idx0,:,:],axis=0).transpose(), 
                 cmap=colormap, interpolation='quadric',
                 origin='lower', vmin=vmin, vmax=vmax,
                 extent=( ye[0], ye[1], ze[0], ze[1]) )
-        plt.colorbar(im2, ax=axs[2], label=label)
+        plt.colorbar(im2, ax=axs[2], label=label, ticks=[0.0,0.2,0.4])
         axs[2].set(xlabel=r'$Y (\mu m)$', ylabel=r'$Z (\mu m)$')
         axs[2].set_xticks(ye)
         axs[2].set_yticks(ze)
@@ -936,6 +1213,49 @@ class LocalMap():
         plt.savefig(savepath, bbox_inches="tight")
         plt.close()
         # }}}
+
+    # Mask Geometry {{{
+    def mask_geometry(self, data):
+        
+        data_masked = np.copy(data)
+        xv,yv,zv = self.GetSamplePoints()
+
+        if self.confinement_ == 'spherical':
+            
+            center = np.array(self.geometry_['center'])
+            radius = self.geometry_['radius']
+
+            for xj in np.arange(xv.shape[0]):
+                for yj in np.arange(yv.shape[1]):
+                    for zj in np.arange(zv.shape[2]):
+                        
+                        if np.linalg.norm([xv[xj,yj,zj], yv[xj,yj,zj], zv[xj,yj,zj]] - center) > radius+self.diameter_/10:
+                            data_masked[xj,yj,zj] = 0
+
+        elif self.confinement_ == 'cylindrical':
+            
+            center = np.array(self.geometry_['center'])
+            radius = self.geometry_['radius']
+
+            for xj in np.arange(xv.shape[0]):
+                for yj in np.arange(yv.shape[1]):
+                    if np.linalg.norm([xv[xj,yj,0], yv[xj,yj,0]]-center[:2]) > radius+self.diameter_/10:
+                        data_masked[xj,yj,:] = 0
+
+        return data_masked
+
+    # Get {{{
+    def get_box_size_(self):
+        return np.copy(self.box_size_)
+    def get_confinement_(self):
+        return self.confinement_
+    def get_geometry_(self):
+        return self.geometry_
+    def get_diameter_(self):
+        return self.diameter_
+    def get_search_radius_(self):
+        return self.search_radius_
+    # }}}
 # }}}
 
 # Order Params {{{
@@ -1019,4 +1339,19 @@ def calc_polar_order(orient_array):
     Pvec = Pvec / n_fil
     P = np.linalg.norm( Pvec)
     return P
+# }}}
+
+# dist_pbc {{{
+def cdist_pbc(pos_ref, pos, box_size):
+    """ pos_ref dimension is 1 x 3 """
+    """ pos is dimension N x 3 """
+    for jd in range(pos.shape[1]):
+        cd = cdist(pos_ref[jd].reshape(-1,1), pos[:,jd].reshape(-1,1))
+        cd[ cd > 0.5*box_size[jd] ] -= box_size[jd]
+        try:
+            total += cd**2
+        except:
+            total = cd**2
+    total = np.sqrt(total)
+    return total
 # }}}

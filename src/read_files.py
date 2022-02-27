@@ -4,38 +4,74 @@ from pathlib import Path
 from src.DataHandler import FilamentSeries, CrosslinkerSeries
 from src.read_config import *
 # import vtk
+import pickle
 
 
 def read_sim(spath, conf='U'):
     # Read Simulation into Series
 
-    # read config files
-    # print('\tReading yaml file...')
-    # box_size = get_boxsize_confined(spath, conf)
-    # time_snap = get_timeSnap(spath)
-    # kappa = get_spring_constant(spath, idx=0)
-    # rest_length = get_rest_length(spath, idx=0)
-    # kT = get_kT(spath)
-    # diameter_fil = get_diameter_sylinder(spath)
-    # geometry = get_confining_geometry(spath)
-    config = get_config(spath)
-
     # find data files of sim
     files_sylinder, files_protein, files_constraint = find_all_frames(spath / 'result')
-    print('Reading {0} frames...'.format(len(files_sylinder)))
+
+    # read config files
+    config = get_config(spath)
+
+    # Load pickle files if available
+    fastpath_f = spath / 'Fdata.pickle'
+    fastpath_x = spath / 'Xdata.pickle'
+    if Path.exists(fastpath_f) and Path.exists(fastpath_x):
+        with open(fastpath_f, "rb") as fp:
+            FData = pickle.load(fp)
+        with open(fastpath_x, "rb") as fp:
+            XData = pickle.load(fp)
+        
+        # Check if extra files available
+        # file_numbers
+        syl_filenums = get_filenumbers(files_sylinder) 
+        prot_filenums = get_filenumbers(files_protein) 
+        
+        if syl_filenums[-1] == FData.nframe_-1:
+            print('There are no additional files to load!')
+        else:
+            extra_syl_files = np.array(files_sylinder)[np.where(np.array(get_filenumbers(files_sylinder)) > FData.nframe_-1)[0]].tolist() 
+            extra_prot_files = np.array(files_protein)[np.where(np.array(get_filenumbers(files_protein)) > FData.nframe_-1)[0]].tolist() 
+            print('There are {0} additional files to load!'.format(len(extra_prot_files)) )
+
+            # Load them, and Add them to DataHandlers
+            pos_minus, pos_plus, orientation, gid = read_all_sylinder(extra_syl_files)
+            FData.gid_ = np.concatenate( (FData.gid_, gid), axis=-1)
+            FData.orientation_ = np.concatenate( (FData.orientation_, orientation), axis=-1)
+            FData.pos_minus_ = np.concatenate( (FData.pos_minus_, pos_minus), axis=-1)
+            FData.pos_plus_ = np.concatenate( (FData.pos_plus_, pos_plus), axis=-1)
+            FData.nframe_ = FData.pos_minus_.shape[2]
+
+            gid, pos0, pos1, link0, link1 = read_all_protein(extra_prot_files)
+            XData.gid_ = np.concatenate( (XData.gid_, gid), axis=-1)
+            XData.link0_ = np.concatenate( (XData.link0_, link0), axis=-1)
+            XData.link1_ = np.concatenate( (XData.link1_, link1), axis=-1)
+            XData.pos_minus_ = np.concatenate( (XData.pos_minus_, pos0), axis=-1)
+            XData.pos_plus_ = np.concatenate( (XData.pos_plus_, pos1), axis=-1)
+            XData.nframe_ = XData.pos_minus_.shape[2]
    
-    # Read all files, and
-    # Instantiate handler objects
+    else:
+        # Read all files, and Instantiate handler objects
+        print('Reading {0} frames...'.format(len(files_sylinder)))
 
-    # Filaments
-    pos_minus, pos_plus, orientation, gid = read_all_sylinder(files_sylinder)
-    # FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, box_size, time_snap, kT, diameter_fil)
-    FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, config)
+        # Filaments
+        pos_minus, pos_plus, orientation, gid = read_all_sylinder(files_sylinder)
+        # FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, box_size, time_snap, kT, diameter_fil)
+        FData = FilamentSeries(gid, pos_minus, pos_plus, orientation, config)
 
-    # Crosslinkers
-    gid, pos0, pos1, link0, link1 = read_all_protein(files_protein)
-    # XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, box_size, time_snap, kT, kappa, rest_length)
-    XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, config)
+        # Crosslinkers
+        gid, pos0, pos1, link0, link1 = read_all_protein(files_protein)
+        # XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, box_size, time_snap, kT, kappa, rest_length)
+        XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, config)
+
+    # with open(fastpath_f, "wb") as fp:
+        # pickle.dump(FData, fp)
+    # with open(fastpath_x, "wb") as fp:
+        # pickle.dump(XData, fp)
+
 
     # Constraints
     # stress_uni, stress_bi = read_all_constraint(files_constraint)
@@ -55,6 +91,9 @@ def find_all_frames(spath):
     file_p = sorted( list(spath.glob('**/ProteinAscii*.dat')), key=fileKey)
     file_c = sorted( list(spath.glob('**/ConBlock*.pvtp')), key=fileKey_c)
     return file_s, file_p, file_c
+
+def get_filenumbers(f_list):
+    return [int( f.parts[-1].split('_')[-1].split('.dat')[0] ) for f in f_list]
 
 def read_all_sylinder(file_list):
 
@@ -78,6 +117,8 @@ def read_all_sylinder(file_list):
             len(file_list), 
             100*(1+idx)/len(file_list)), end='\r',flush=True)
 
+    print('############ Reading Sylinder File = {0}/{0} (100%) ############'.format(
+            len(file_list) ))
     return pos_minus, pos_plus, orientation, gid
 
 def read_all_protein(file_list):
@@ -102,6 +143,8 @@ def read_all_protein(file_list):
             len(file_list), 
             100*(1+idx)/len(file_list)), end='\r',flush=True)
 
+    print('############ Reading Protein File = {0}/{0} (100%) ############'.format(
+            len(file_list) ))
     return gid,pos_start,pos_end,link0,link1
 
 def read_dat_sylinder(fname):
