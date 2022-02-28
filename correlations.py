@@ -127,7 +127,7 @@ def main( params):
         # Local Order COM
         if jframe >= n_done_lo_com:
             LPO_com[:,jframe], LNO_com[:,jframe] = calc_local_order_frame_com( 
-                    orientation_, 0.5*(pos_plus_+pos_minus_), cfg['box_size'], cfg['diameter'], scale=2)
+                    orientation_, 0.5*(pos_plus_+pos_minus_), cfg['box_size'], cfg['diameter_fil'], scale=2)
 
     # Save data
     with open(str(cn_path), 'wb') as f:
