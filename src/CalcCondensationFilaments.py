@@ -24,16 +24,17 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     """ Plot the filament condensation """
 
     plot_ratio_condensed_filaments=True
-    plot_diffusion=True
+    plot_diffusion=False
     plot_packing_fraction=False
     plot_local_order=False
     plot_time_averaged_label=False
-    plot_trajectories=True
+    plot_trajectories=False
     
     print('Filaments condensation...') 
     labels, ratio = condensed_via_xlinks_and_mobility(XData, FData, save=True, 
             savepath=params['plot_path'] / 'condensed_filament_positions.pdf',
             datapath=params['data_filestream'], write2vtk=write2vtk, simpath=params['sim_path'])
+    pdb.set_trace()
 
     if plot_trajectories:
         PlotCondensedTrajectories(FData, labels, N=20,
@@ -168,6 +169,9 @@ def condensed_via_xlinks_and_mobility(XData, FData, savepath=None, save=False, d
         # model = GaussianMixture(n_components=n_clusters).fit( scaler.transform(data_fit))
         model = GaussianMixture(n_components=n_clusters).fit( data_fit)
         centers = model.means_
+        # Model score
+        print('GMM BIC score = {0:.2f}'.format( model.bic(data) ) )
+
     # labels = model.predict( scaler.transform(data))
     labels = model.predict( data)
     df = pd.DataFrame( np.hstack( (data, labels.flatten().reshape(-1,1)))[::500,:], columns=['nx','mobi', 'label'])
@@ -806,35 +810,51 @@ def PlotClusterAstralOrder(pos_plus, pos_minus, labels, box_size, savepath=None,
 # }}}
 
 # PlotCondensedLocalOrder {{{
-def PlotCondensedLocalOrder(FData, labels, savedir=None, datapath=None):
+def PlotCondensedLocalOrder(FData, labels, N=200, savedir=None, datapath=None):
     """ find Local Polar Order of condensed filaments """
     
     # Check if Local Order has been found. If not, raise error
-    if not FData.local_order_calculated:
-        raise Exception('Please first evaluate FData.LocalStructure()')
+    # if not FData.local_order_calculated:
+        # raise Exception('Please first evaluate FData.LocalStructure()')
+
+    # Define histogram bins
+    bins_lpo = np.linspace(-1,1,50)
+    bins_lpo_cen = 0.5*(bins_lpo[1:]+bins_lpo[:-1])
+    bins_lno = np.linspace(0,1,25)
+    bins_lno_cen = 0.5*(bins_lno[1:]+bins_lno[:-1])
 
     # Extract labels for condensed filaments
-    labels_specific = labels[:,-1*FData.local_polar_order_.shape[-1]:]
+    labels_specific = labels[:,-1*N:]
     # Local Polar Order
-    lpo = FData.local_polar_order_.flatten()[labels_specific.flatten() == 0]
+    lpo = FData.local_polar_order[:,-1*N:].flatten()[labels_specific.flatten() == 0]
     # Local Nematic Order
-    lno = FData.local_nematic_order_.flatten()[labels_specific.flatten() == 0]
+    lno = FData.local_nematic_order[:,-1*N:].flatten()[labels_specific.flatten() == 0]
+    
+    lpo_pdf = np.histogram(lpo.flatten(), density=True, bins=bins_lpo)[0]
+    lno_pdf = np.histogram(lno.flatten(), density=True, bins=bins_lno)[0]
 
     # Plot LPO, LNO
     if savedir:
         fig,(ax0, ax1) = plt.subplots(1,2, figsize=(8,3))
-        ax0.hist(lno.flatten(), bins=np.linspace(0,1,25), density=True)[-1]
+        # ax0.hist(lno.flatten(), bins=np.linspace(0,1,25), density=True)[-1]
+        ax0.hist( lno_pdf, bins_lno, density=True, edgecolor='white', linewidth=1.0, alpha=0.4, color = 'k')
+        ax0.plot(bins_lno_cen, lno_pdf, linewidth=2, color='k')
         ax0.set(xlabel='Local nematic order', ylabel='Probablity density' )
-        ax1.hist(lpo.flatten(), bins=np.linspace(-1,1,25), density=True)[-1]
+        ax1.hist( lpo_pdf, bins_lpo, density=True, edgecolor='white', linewidth=1.0, alpha=0.4, color = 'k')
+        ax1.plot(bins_lpo_cen, lpo_pdf, linewidth=2, color='k')
         ax1.set(xlabel='Local polar order', ylabel='Probablity density' )
         plt.tight_layout()
         plt.savefig(savedir/'condensed_local_order.pdf', bbox_inches="tight")
         plt.close()
 
-    # if datapath is not None:
-        # # save to h5py
-        # datapath.create_dataset('filament/condensed_local', data=astral_order_time, dtype='f')
-        # # datapath.create_dataset('filament/', data=n_clusters, dtype='f')
+    # save to h5py
+    if datapath is not None:
+        datapath.create_dataset('filament/condensed_lpo', data=lpo_pdf, dtype='f')
+        datapath.create_dataset('filament/condensed_lpo_bin_centers', data=bins_lpo_cen, dtype='f')
+        datapath.create_dataset('filament/condensed_lpo_bin_edges', data=bins_lpo, dtype='f')
+        datapath.create_dataset('filament/condensed_lno', data=lno_pdf, dtype='f')
+        datapath.create_dataset('filament/condensed_lno_bin_centers', data=bins_lno_cen, dtype='f')
+        datapath.create_dataset('filament/condensed_lno_bin_edges', data=bins_lno, dtype='f')
 
 # }}}
 
@@ -959,7 +979,7 @@ def PlotClusterMotion(pos, labels, box_size, savepath=None):
 # }}}
 
 # PlotResidenceTimes {{{
-def PlotResidenceTimes(labels, N=200, dt=0.05, savepath=None, datapath=None):
+def PlotResidenceTimes(labels, N=400, dt=0.05, savepath=None, datapath=None):
     """ Reisidence time is the time spent by a particle in the condensed state """
     
     # Only analyze the last N frames
@@ -993,13 +1013,17 @@ def PlotResidenceTimes(labels, N=200, dt=0.05, savepath=None, datapath=None):
     
     if savepath is not None:
         fig,ax = plt.subplots()
-        ax.hist(residence_times, 12, density=True )
+        ax.hist(residence_times, 24, density=True, label='N = {0}'.format(len(residence_times) ) )
         ax.set(xlabel='Residence times (s)',ylabel='Probability density')
         ax.set_xlim(left=0)
+        ax.legend(frameon=False)
         plt.tight_layout()
         plt.savefig(savepath)
         plt.close()
-
-    return residence_times
+        
+    if datapath is not None:
+        # save to h5py
+        datapath.create_dataset('filament/condensed_residence_time', data=residence_times, dtype='f')
+    # return residence_times
 # }}}
 

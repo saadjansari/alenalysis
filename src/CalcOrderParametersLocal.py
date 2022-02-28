@@ -3,18 +3,18 @@ import numpy as np
 import pdb
 import scipy.spatial.ckdtree
 from scipy.ndimage import convolve as conv
-from scipy.stats import gaussian_kde
 from src.DataHandler import *
 from src.CalcContactNumber import calc_contact_number
 from src.write2vtk import add_array_to_vtk
 import src.decorators
 from pathlib import Path
+from matplotlib import colors
 
 def PlotLocalPolarOrderVsTime( FData, savepath):
     """ Plot local polar order for each filament vs time """
 
     print('Plotting Local Polar Order Per Time Image (via KDtree)...')
-    PolarOrder = FData.local_polar_order_
+    PolarOrder = FData.local_polar_order
 
     fig,ax = plt.subplots()
 
@@ -28,11 +28,11 @@ def PlotLocalPolarOrderVsTime( FData, savepath):
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-def PlotLocalPolarOrderHistogram( FData, savepath):
+def PlotLocalPolarOrderHistogram( FData, savepath, N=300):
     """ Plot local polar order histogram over all of time (KDtree) """
 
     print('Plotting Local Polar Order Histogram (via KDtree)...')
-    PolarOrder = FData.local_polar_order_
+    PolarOrder = FData.local_polar_order[:,-1*N]
 
     fig,ax = plt.subplots()
     ax.hist(PolarOrder.flatten(), bins=np.linspace(-1,1,50))[-1]
@@ -45,7 +45,7 @@ def PlotLocalNematicOrderVsTime( FData, savepath):
     """ Plot local nematic order for each filament vs time """
 
     print('Plotting Local Nematic Order Per Time Image (via KDtree)...')
-    SOrder = FData.local_nematic_order_
+    SOrder = FData.local_nematic_order
 
     fig,ax = plt.subplots()
 
@@ -59,11 +59,11 @@ def PlotLocalNematicOrderVsTime( FData, savepath):
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-def PlotLocalNematicOrderHistogram( FData, savepath):
+def PlotLocalNematicOrderHistogram( FData, savepath, N=300):
     """ Plot local nematic order histogram over all of time (KDtree) """
 
     print('Plotting Local Nematic Order Histogram (via KDtree)...')
-    SOrder = FData.local_nematic_order_
+    SOrder = FData.local_nematic_order[:,-1*N]
 
     fig,ax = plt.subplots()
     ax.hist(SOrder.flatten(), bins=np.linspace(0,1,50))[-1]
@@ -72,88 +72,67 @@ def PlotLocalNematicOrderHistogram( FData, savepath):
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-def PlotLocalNematicOrderContactNumberHistogram( FData, savepath):
+def PlotLocalNematicOrderContactNumberHistogram( FData, savepath, N=300):
     """ Plot local nematic order vs contact number 2D histogram over all of time """
 
     print('Plotting 2D hist: Local Nematic Order and Contact number...')
-    SOrder = FData.local_nematic_order_.flatten()
-    Cnumber = calc_contact_number(FData.min_dist_).flatten()
-
-    # Kernel Density Estimation
-    data = np.vstack([SOrder, Cnumber])
-    kde = gaussian_kde(data)
+    SOrder = FData.local_nematic_order[:,-1*N:].flatten()
+    Cnumber = FData.contact_number[:,-1*N:].flatten()
 
     # evaluate on a regular grid
     xgrid = np.linspace(0,1,100)
     ygrid = np.linspace(np.min(Cnumber),np.max(Cnumber), 100)
-    Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
-    Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
 
     # Plot the result as an image
     fig,ax = plt.subplots()
-    im = ax.imshow(Z.reshape(Xgrid.shape),
-               origin='lower', aspect='auto',
-               extent=[xgrid[0], xgrid[-1], ygrid[0], ygrid[-1]],
-               cmap='viridis')
-    plt.colorbar(im, ax=ax, label="Density")
+    im = ax.hist2d(SOrder, Cnumber,
+           bins = [xgrid, ygrid], density=True,
+           norm = colors.LogNorm(),cmap ="viridis")
+    fig.colorbar(im[3], ax=ax, label="Density")
     ax.set(xlabel='Local nematic order', ylabel='Contact number')
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-def PlotLocalPolarOrderContactNumberHistogram( FData, savepath):
+def PlotLocalPolarOrderContactNumberHistogram( FData, savepath, N=300):
     """ Plot local polar order vs contact number 2D histogram over all of time """
 
     print('Plotting 2D hist: Local polar order and contact number...')
-    POrder = FData.local_polar_order_.flatten()
-    Cnumber = calc_contact_number(FData.min_dist_).flatten()
-
-    # Kernel Density Estimation
-    data = np.vstack([POrder, Cnumber])
-    kde = gaussian_kde(data)
+    POrder = FData.local_polar_order[:,-1*N:].flatten()
+    Cnumber = FData.contact_number[:,-1*N:].flatten()
 
     # evaluate on a regular grid
     xgrid = np.linspace(-1,1,100)
     ygrid = np.linspace(np.min(Cnumber),np.max(Cnumber), 100)
-    Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
-    Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
 
     # Plot the result as an image
     fig,ax = plt.subplots()
-    im = ax.imshow(Z.reshape(Xgrid.shape),
-               origin='lower', aspect='auto',
-               extent=[xgrid[0], xgrid[-1], ygrid[0], ygrid[-1]],
-               cmap='viridis')
+    im = ax.hist2d(POrder, Cnumber,
+           bins = [xgrid, ygrid], density=True,
+           norm = colors.LogNorm(),cmap ="viridis")
+    fig.colorbar(im[3], ax=ax, label="Density")
     ax.set(xlabel='Local polar order', ylabel='Contact number')
-    plt.colorbar(im, ax=ax, label="Density")
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-def PlotLocalNematicOrderLocalPolarOrderHistogram( FData, savepath):
+def PlotLocalNematicOrderLocalPolarOrderHistogram( FData, savepath, N=300):
     """ Plot local nematic order vs local polar number 2D histogram over all of time """
 
     print('Plotting 2D hist: Local Nematic Order and local polar order...')
-    SOrder = FData.local_nematic_order_.flatten()
-    POrder = FData.local_polar_order_.flatten()
-
-    # Kernel Density Estimation
-    data = np.vstack([SOrder, POrder])
-    kde = gaussian_kde(data)
+    POrder = FData.local_polar_order[:,-1*N:].flatten()
+    SOrder = FData.local_nematic_order[:,-1*N:].flatten()
 
     # evaluate on a regular grid
     xgrid = np.linspace(0,1,100)
     ygrid = np.linspace(-1,1,100)
-    Xgrid, Ygrid = np.meshgrid(xgrid, ygrid)
-    Z = kde.evaluate(np.vstack([Xgrid.ravel(), Ygrid.ravel()]))
 
     # Plot the result as an image
     fig,ax = plt.subplots()
-    im = ax.imshow(Z.reshape(Xgrid.shape),
-               origin='lower', aspect='auto',
-               extent=[xgrid[0], xgrid[-1], ygrid[0], ygrid[-1]],
-               cmap='viridis')
-    plt.colorbar(im, ax=ax, label="Density")
+    im = ax.hist2d(SOrder, POrder,
+           bins = [xgrid, ygrid], density=True,
+           norm = colors.LogNorm(),cmap ="viridis")
+    fig.colorbar(im[3], ax=ax, label="Density")
     ax.set(xlabel='Local nematic order', ylabel='Local polar order')
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
@@ -162,12 +141,12 @@ def PlotLocalNematicOrderLocalPolarOrderHistogram( FData, savepath):
 def WriteLocalOrder2vtk( FData, params):
 
     lpo = np.zeros( (FData.nfil_, FData.nframe_) )
-    lpo_known = FData.local_polar_order_
+    lpo_known = FData.local_polar_order
     lpo[:, -1*lpo_known.shape[1]:] = lpo_known
     add_array_to_vtk(lpo, 'LPO', params['sim_path'])
 
     lno = np.zeros( (FData.nfil_, FData.nframe_) )
-    lno_known = FData.local_nematic_order_
+    lno_known = FData.local_nematic_order
     lno[:, -1*lno_known.shape[1]:] = lno_known
     add_array_to_vtk(lno, 'LNO', params['sim_path'])
 
@@ -249,52 +228,3 @@ def calc_local_order_frame( orients, min_dist):
 
     return Porder, Sorder
 # }}}
-
-# CalcSaveLocalOrder {{{
-def CalcSaveLocalOrder(FData, simpath):
-
-    # Define mindist file path
-    lo_path = simpath / 'local_order.npy'
-
-    # Check if data already exists. If yes, load it
-    if Path.exists(lo_path):
-        with open(str(lo_path), 'rb') as f:
-            LPO = np.load(f)
-            LNO = np.load(f)
-
-        if np.any( LPO.shape != LNO.shape):
-            print('loaded LPO and LNO shapes are different')
-        
-        # how many new frames to compute this for
-        n_new = int(FData.nframe_ - LPO.shape[-1])
-        print('Computing local order for {0} frames'.format(n_new))
-
-        if n_new > 0:
-            LPO_new = np.zeros( (FData.nfil_, n_new) )
-            LPO = np.concatenate( (LPO, LPO_new), axis=-1)
-            LNO_new = np.zeros( (FData.nfil_, n_new) )
-            LNO = np.concatenate( (LNO, LNO_new), axis=-1)
-        else:
-            return LPO, LNO 
-    else:
-        # New frames
-        n_new = int(FData.nframe_)
-        LPO = np.zeros((FData.nfil_, n_new))
-        LNO = np.zeros((FData.nfil_, n_new))
-
-    # Process unprocessed frames
-    for cframe in range(FData.nframe_-n_new,FData.nframe_):
-        print('Frame = {0}/{1}'.format(cframe,FData.nframe_), 
-                end='\r', flush=True )
-        LPO[:,cframe], LNO[:,cframe] = calc_local_order_frame( 
-                FData.orientation_[:,:,cframe], 
-                FData.MD[:,:,cframe])
-    
-    print('Frame = {0}/{0}'.format(FData.nframe_))
-
-    # Save local order data
-    with open(str(lo_path), 'wb') as f:
-        np.save(f, LPO)
-        np.save(f, LNO)
-
-    return LPO, LNO

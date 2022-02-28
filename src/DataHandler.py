@@ -3,17 +3,11 @@ import numba as nb
 from random import sample
 import matplotlib.pyplot as plt
 import pdb
-# import vtk
 from src.unfold_trajectories import *
 from src.CalcOrderParametersLocal import * 
 from src.CalcPackingFraction import * 
 from src.CalcOverlaps import minDistBetweenAllFilaments
 from src.CalcContactNumber import calc_contact_number
-# from unfold_trajectories import *
-# from CalcOrderParametersLocal import * 
-# from CalcPackingFraction import * 
-# from CalcOverlaps import minDistBetweenAllFilaments
-# from CalcContactNumber import calc_contact_number
 
 # DataSeries {{{
 class DataSeries:
@@ -367,18 +361,15 @@ class CrosslinkerSeries(DataSeries):
     # Plot trajectories }}}
 # }}}
 
-# class Boundary():
-    # """Class for confinement boundary of simulation
-    # Styles:
-    # --------------------
-    # C: cylindrical confinement;q;;q;
+def AddCorrelationsToDataSeries(DSeries, simpath):
     
-    # """
-    # def __init__(self, style, X,Y,Z):
-        # if style == 'C'         # Cylindrical condinement
-            
+    # Contact Number
+    with open(simpath / 'contact_number.npy', 'rb') as f:
+        DSeries.contact_number = np.load(f)
+        
+    # Local Order
+    with open(simpath / 'local_order.npy', 'rb') as f:
+        DSeries.local_polar_order = np.load(f)
+        DSeries.local_nematic_order = np.load(f)
 
-
-# class ConstraintSeries():
-    # """Class for handling data related to constraints."""
-    # def __init__(self):
+    return DSeries

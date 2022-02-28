@@ -62,7 +62,7 @@ def PlotRDF_PAP(FData, params, frame_avg_window=20,**kwargs):
     """ Plot the RDF with c.o.m for the last N frames (split parallel and antiparallel filaments"""
     
     frames = np.arange(FData.nframe_-frame_avg_window,FData.nframe_)
-    which_end='com'
+    which_end='minus'
 
     types=['Parallel', 'Antiparallel']
     linestyle=['dotted','solid']

@@ -65,7 +65,7 @@ def calc_effective_diameter(pos_minus, pos_plus, diameter):
     return np.array( overlapList)
 
 @njit
-def minDistBetweenTwoFil(p1, p2, p3, p4, box_size):
+def minDistBetweenTwoFil(p1, p2, p3, p4):
     """
     Find Minimum Distance between two filaments
 
@@ -96,20 +96,20 @@ def minDistBetweenTwoFil(p1, p2, p3, p4, box_size):
     w = p2 - p4
 
     # Apply PBC
-    for jdim in np.arange(box_size.shape[0]):
-        bs=box_size[jdim]
-        if u[jdim] > 0.5*bs:
-            u[jdim]-=bs
-        elif u[jdim] <= -0.5*bs:
-            u[jdim]+=bs
-        if v[jdim] > 0.5*bs:
-            v[jdim]-=bs
-        elif v[jdim] <= -0.5*bs:
-            v[jdim]+=bs
-        if w[jdim] > 0.5*bs:
-            w[jdim]-=bs
-        elif w[jdim] <= -0.5*bs:
-            w[jdim]+=bs
+    # for jdim in np.arange(box_size.shape[0]):
+        # bs=box_size[jdim]
+        # if u[jdim] > 0.5*bs:
+            # u[jdim]-=bs
+        # elif u[jdim] <= -0.5*bs:
+            # u[jdim]+=bs
+        # if v[jdim] > 0.5*bs:
+            # v[jdim]-=bs
+        # elif v[jdim] <= -0.5*bs:
+            # v[jdim]+=bs
+        # if w[jdim] > 0.5*bs:
+            # w[jdim]-=bs
+        # elif w[jdim] <= -0.5*bs:
+            # w[jdim]+=bs
 
     a = np.dot(u,u)
     b = np.dot(u,v)
@@ -184,7 +184,7 @@ def minDistBetweenTwoFil(p1, p2, p3, p4, box_size):
 
 @src.decorators.timer
 @njit
-def minDistBetweenAllFilaments(a0,a1, b0,b1, box_size):
+def minDistBetweenAllFilaments(a0,a1, b0,b1):
 
     n_fil = a0.shape[1]
     dmat = np.zeros((n_fil,n_fil))
@@ -195,7 +195,7 @@ def minDistBetweenAllFilaments(a0,a1, b0,b1, box_size):
             elif idx1 > idx2:
                 continue
             else:
-                dmat[idx1,idx2] = minDistBetweenTwoFil( a0[:,idx1],a1[:,idx1], b0[:,idx2], b1[:,idx2], box_size)
+                dmat[idx1,idx2] = minDistBetweenTwoFil( a0[:,idx1],a1[:,idx1], b0[:,idx2], b1[:,idx2])
                 dmat[idx2,idx1] = dmat[idx1,idx2]
                 
     return dmat

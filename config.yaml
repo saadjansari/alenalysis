@@ -1,0 +1,31 @@
+# Configuration for Analysis
+
+# Mode to compute nearest neighbor correlations (min dist, contact number, local order)
+# If True, a separate script is run to compute it, and no other parameters are used
+CorrelationMode: False
+
+# General 
+PlotTrajectories: False
+PlotCrosslinkerStats: False
+PlotCrosslinkerLength: False
+PlotGlobalOrderParameters: False
+PlotEffectiveDiameter: False 
+PlotCorrelations: False # Correlations data must be saved
+PlotDynamics: False 
+PlotRDF: False 
+PlotLocalMaps: False
+
+# Filament Condensates
+ComputeFilamentCondensates: True
+
+# Filament Clusters
+ComputeFilamentClusters: False
+
+# Crosslinker Clusters
+ComputeCrosslinkerClusters: False
+
+# Write VTK
+WriteCorrelationsToVTK: False
+WriteAngleToVTK: False
+WriteFilamentCondensatesToVTK: False
+

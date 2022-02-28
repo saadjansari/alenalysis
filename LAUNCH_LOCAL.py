@@ -6,6 +6,9 @@ import os
 with open('./sims_list.yaml', 'r') as f:
     cfg = yaml.safe_load(f)
 
+with open('./config.yaml', 'r') as f:
+    cfg2 = yaml.safe_load(f)
+
 # get sim_names if required
 if not cfg['custom_sims']:
     sims = []
@@ -19,7 +22,7 @@ else:
     sims = cfg['sims']
 
 # Filament correlations mode
-correlation_mode = cfg['filament_correlations_mode']
+correlation_mode = cfg2['CorrelationMode']
 
 # Print sims names
 print("-"*50)

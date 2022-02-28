@@ -4,6 +4,7 @@ import seaborn as sns
 import pdb
 import matplotlib.pyplot as plt
 
+# PlotCrosslinkerPositionOnFilament {{{
 def PlotCrosslinkerPositionOnFilament( FData, XData, params):
     """ Make a Density Plot for all frames"""
 
@@ -86,4 +87,35 @@ def PlotCrosslinkerPositionOnFilament( FData, XData, params):
 
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
+
+# }}}
+
+# PlotCrosslinkerLength
+def PlotCrosslinkerLength( XData, params, savepath):
+
+    dt = XData.config_['time_snap']
+    times = dt*np.arange(XData.nframe_)
+    
+    lens = XData.pos_plus_-XData.pos_minus_
+    lens = np.linalg.norm(lens, axis=0)
+    lens[ lens == 0] = np.NaN
+
+    lens_mu = np.nanmean(lens, axis=0)
+    lens_std = np.nanstd(lens, axis=0)
+
+    fig, ax = plt.subplots()
+    ax.errorbar(times[::10], lens_mu[::10], yerr=lens_std[::10], 
+            marker='.', ms=1, mew=0.5, mfc="None", alpha=0.5,
+            lw=1, linestyle = 'None', elinewidth=0.5, capsize=1,
+            )
+
+    # Labels
+    ax.set(ylabel=r'Length / $\mu m$', xlabel='Time / s')
+    ax.set_ylim(bottom=0.0)
+
+    # Save plot
+    plt.tight_layout()
+    plt.savefig(savepath)
+    plt.close()
+
 
