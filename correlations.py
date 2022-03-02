@@ -41,13 +41,13 @@ def main( params):
     CN = np.zeros((nfil_, nframe_))
     LPO = np.zeros((nfil_, nframe_))
     LNO = np.zeros((nfil_, nframe_))
-    LPO_com = np.zeros((nfil_, nframe_))
-    LNO_com = np.zeros((nfil_, nframe_))
+    # LPO_com = np.zeros((nfil_, nframe_))
+    # LNO_com = np.zeros((nfil_, nframe_))
 
     # Check if data exists . If yes, load and fill out arrays
     cn_path = simpath / 'contact_number.npy'
     lo_path = simpath / 'local_order.npy'
-    lo_com_path = simpath / 'local_order_com.npy'
+    # lo_com_path = simpath / 'local_order_com.npy'
 
     if Path.exists(cn_path):
         with open(str(cn_path), 'rb') as f:
@@ -78,23 +78,24 @@ def main( params):
     else:
         n_done_lo = 0 
         print('No LO data exists')
-    if Path.exists(lo_com_path):
-        with open(str(lo_com_path), 'rb') as f:
-            LPO_com_pre = np.load(f)
-            LNO_com_pre = np.load(f)
-        # Find how many frames processed, and fill out
-        n_done_lo_com = LPO_com_pre.shape[-1]
-        print('Local Order data exists: {0}/{1} frames'.format(n_done_lo_com, nframe_))
-        if n_done_lo_com>nframe_:
-            LPO_com = LPO_com_pre
-            LNO_com = LNO_com_pre
-        else:
-            LPO_com[:,:n_done_lo] = LPO_com_pre
-            LNO_com[:,:n_done_lo] = LNO_com_pre
-    else:
-        n_done_lo_com = 0 
-        print('No LO com data exists')
-    n_done = min([n_done_lo, n_done_lo_com, n_done_cn])
+    # if Path.exists(lo_com_path):
+        # with open(str(lo_com_path), 'rb') as f:
+            # LPO_com_pre = np.load(f)
+            # LNO_com_pre = np.load(f)
+        # # Find how many frames processed, and fill out
+        # n_done_lo_com = LPO_com_pre.shape[-1]
+        # print('Local Order data exists: {0}/{1} frames'.format(n_done_lo_com, nframe_))
+        # if n_done_lo_com>nframe_:
+            # LPO_com = LPO_com_pre
+            # LNO_com = LNO_com_pre
+        # else:
+            # LPO_com[:,:n_done_lo] = LPO_com_pre
+            # LNO_com[:,:n_done_lo] = LNO_com_pre
+    # else:
+        # n_done_lo_com = 0 
+        # print('No LO com data exists')
+    # n_done = min([n_done_lo, n_done_lo_com, n_done_cn])
+    n_done = min([n_done_lo, n_done_cn])
 
     # Loop over frames and process
     for jframe in range(nframe_):
@@ -102,7 +103,7 @@ def main( params):
         if jframe < n_done:
             continue
         
-        print('Frame = {0}/{1}'.format(jframe, nframe_) )
+        print('Frame = {0}/{1}'.format(jframe+1, nframe_) )
         
         # Read sylinder data
         _,_,pos_minus_,pos_plus_, orientation_ = read_dat_sylinder(files_s[jframe])
@@ -124,10 +125,22 @@ def main( params):
                     orientation_, 
                     MD)
 
-        # Local Order COM
-        if jframe >= n_done_lo_com:
-            LPO_com[:,jframe], LNO_com[:,jframe] = calc_local_order_frame_com( 
-                    orientation_, 0.5*(pos_plus_+pos_minus_), cfg['box_size'], cfg['diameter_fil'], scale=2)
+        # # Local Order COM
+        # if jframe >= n_done_lo_com:
+            # LPO_com[:,jframe], LNO_com[:,jframe] = calc_local_order_frame_com( 
+                    # orientation_, 0.5*(pos_plus_+pos_minus_), cfg['box_size'], cfg['diameter_fil'], scale=2)
+
+        # Save every 10th frame
+        if not jframe%nframe_:
+            print('Saving data')
+            # Save data
+            with open(str(cn_path), 'wb') as f:
+                np.save(f, CN)
+
+            # Save data
+            with open(str(lo_path), 'wb') as f:
+                np.save(f, LPO)
+                np.save(f, LNO)
 
     # Save data
     with open(str(cn_path), 'wb') as f:
@@ -138,10 +151,10 @@ def main( params):
         np.save(f, LPO)
         np.save(f, LNO)
         
-    # Save data
-    with open(str(lo_com_path), 'wb') as f:
-        np.save(f, LPO_com)
-        np.save(f, LNO_com)
+    # # Save data
+    # with open(str(lo_com_path), 'wb') as f:
+        # np.save(f, LPO_com)
+        # np.save(f, LNO_com)
     
     gc.collect()
     print(tracemalloc.get_traced_memory())
