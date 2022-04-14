@@ -131,7 +131,7 @@ def main( params):
                     # orientation_, 0.5*(pos_plus_+pos_minus_), cfg['box_size'], cfg['diameter_fil'], scale=2)
 
         # Save every 10th frame
-        if not jframe%nframe_:
+        if not jframe%10:
             print('Saving data')
             # Save data
             with open(str(cn_path), 'wb') as f:
