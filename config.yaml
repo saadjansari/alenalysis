@@ -6,13 +6,14 @@ CorrelationMode: False
 
 # General 
 PlotTrajectories: False
-PlotCrosslinkerStats: False
+PlotCrosslinkerStats: True
 PlotCrosslinkerLength: False
-PlotGlobalOrderParameters: False
+PlotGlobalOrderParameters: True
+PlotExtensileMotors: False
 PlotEffectiveDiameter: False 
 PlotCorrelations: False # Correlations data must be saved
-PlotDynamics: False 
-PlotRDF: False 
+PlotDynamics: False
+PlotRDF: False
 PlotLocalMaps: False
 
 # Filament Condensates

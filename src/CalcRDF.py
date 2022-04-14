@@ -7,7 +7,7 @@ import time
 from src.decorators import timer
 
 # Plotting
-def PlotRDF(FData, params, frame_avg_window=20,**kwargs):
+def PlotRDF(FData, params, frame_avg_window=100,**kwargs):
     """ Plot the RDF for the last N frames"""
     
     frames = np.arange(FData.nframe_-frame_avg_window,FData.nframe_)
@@ -53,12 +53,18 @@ def PlotRDF(FData, params, frame_avg_window=20,**kwargs):
     
     # Save data to hdf
     datapath=params['data_filestream']
+    if 'filament/rdf_radii' in datapath:
+        del datapath['filament/rdf_radii']
+    if 'filament/rdf_plus' in datapath:
+        del datapath['filament/rdf_plus']
+    if 'filament/rdf_minus' in datapath:
+        del datapath['filament/rdf_minus']
     datapath.create_dataset('filament/rdf_radii', data=rdf.get_radii(), dtype='f')
     datapath.create_dataset('filament/rdf_plus', data=np.mean(gr[:,:,1],axis=0), dtype='f')
     datapath.create_dataset('filament/rdf_minus', data=np.mean(gr[:,:,0],axis=0), dtype='f')
 
 # Plotting
-def PlotRDF_PAP(FData, params, frame_avg_window=20,**kwargs):
+def PlotRDF_PAP(FData, params, frame_avg_window=100,**kwargs):
     """ Plot the RDF with c.o.m for the last N frames (split parallel and antiparallel filaments"""
     
     frames = np.arange(FData.nframe_-frame_avg_window,FData.nframe_)
@@ -104,9 +110,15 @@ def PlotRDF_PAP(FData, params, frame_avg_window=20,**kwargs):
     
     # Save data to hdf
     datapath=params['data_filestream']
+    if 'filament/rdf_radii_pap' in datapath:
+        del datapath['filament/rdf_radii_pap']
+    if 'filament/rdf_p' in datapath:
+        del datapath['filament/rdf_p']
+    if 'filament/rdf_ap' in datapath:
+        del datapath['filament/rdf_ap']
     datapath.create_dataset('filament/rdf_radii_pap', data=rdf.get_radii(), dtype='f')
     datapath.create_dataset('filament/rdf_p', data=np.mean(gr[:,:,0],axis=0), dtype='f')
-    datapath.create_dataset('filament/rdf_pap', data=np.mean(gr[:,:,1],axis=0), dtype='f')
+    datapath.create_dataset('filament/rdf_ap', data=np.mean(gr[:,:,1],axis=0), dtype='f')
 
 class RDF():
     # Class for computing radial density functions in a variety of geometries.

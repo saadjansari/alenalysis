@@ -5,26 +5,29 @@ from matplotlib import pyplot as plt
 import pdb
 
 # Plotting
-def PlotMSD(FData, savepath):
+def PlotMSD(FData, params, savepath, N=300):
     """ Plot the ensemble-averaged MSD"""
 
     print('Plotting ensemble-averaged MSD')
 
     # Unfolded trajectories
-    pos_unfolded = FData.unfold_trajectories('com')
+    pos_unfolded = FData.unfold_trajectories('com')[:,:,-1*N:]
 
     # MSD
     MSD = calc_msd_fft( pos_unfolded)
+    MSD_mu = np.mean(MSD,axis=0)
+    MSD_std = np.std(MSD,axis=0)
+    MSD_sem = MSD_std/np.sqrt(MSD.shape[0])
 
     # Display
     timeStep = FData.config_['time_snap']
-    timeArray = timeStep * np.arange(FData.nframe_)
+    timeArray = timeStep * np.arange(FData.nframe_-N, FData.nframe_)
 
     fig,ax = plt.subplots()
-    ax.plot(timeArray, np.mean(MSD, axis=0), color='blue', lw=2)
+    ax.plot(timeArray, MSD_mu, color='blue', lw=2)
     ax.fill_between(timeArray,
-                    np.mean(MSD, axis=0) - np.std(MSD, axis=0)/np.sqrt(MSD.shape[0]),
-                    np.mean(MSD, axis=0) + np.std(MSD, axis=0)/np.sqrt(MSD.shape[0]),
+                    MSD_mu - MSD_sem,
+                    MSD_mu + MSD_sem,
                     color='blue', alpha=0.2)
     ax.set_xlim(left=-0.01)
     ax.set_ylim(bottom=-0.01)
@@ -34,6 +37,17 @@ def PlotMSD(FData, savepath):
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
+
+    # save to h5py
+    if 'filament/msd_lagtime' in params['data_filestream']:
+        del params['data_filestream']['filament/msd_lagtime']
+    if 'filament/msd' in params['data_filestream']:
+        del params['data_filestream']['filament/msd']
+    if 'filament/msd_std' in params['data_filestream']:
+        del params['data_filestream']['filament/msd_std']
+    params['data_filestream'].create_dataset('filament/msd_lagtime', data=timeArray, dtype='f')
+    params['data_filestream'].create_dataset('filament/msd', data=MSD_mu, dtype='f')
+    params['data_filestream'].create_dataset('filament/msd_std', data=MSD_std, dtype='f')
 
 def autocorrFFT(x):
     N=len(x)

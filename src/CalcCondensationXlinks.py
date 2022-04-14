@@ -6,8 +6,9 @@ import pdb
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns
-from src.CalcCondensationFilaments import pdist_pbc, pdist_pbc_xyz_max, calc_com_pbc
 from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
+from src.calc_com_pbc import calc_com_pbc
+from src.calc_pdist_pbc import pdist_pbc, pdist_pbc_xyz_max
 
 # PlotXlinkClusters {{{
 def PlotXlinkClusters(XData, params, N=100):
@@ -159,6 +160,8 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
     plt.close()
     if datapath is not None:
         # save ratio to h5py
+        if 'xlinker/cluster_extent_xyz' in datapath:
+            del datapath['xlinker/cluster_extent_xyz']
         datapath.create_dataset('xlinker/cluster_extent_xyz', data=std, dtype='f')
     return labels
 # }}}
@@ -188,6 +191,14 @@ def cluster_shape_analysis(pos0, pos1, labels, box_size, datapath=None):
             rg2.append( G_data["Rg2"])
     
     if datapath is not None:
+        if 'xlinker/asphericity' in datapath:
+            del datapath['xlinker/asphericity']
+        if 'xlinker/acylindricity' in datapath:
+            del datapath['xlinker/acylindricity']
+        if 'xlinker/anisotropy' in datapath:
+            del datapath['xlinker/anisotropy']
+        if 'xlinker/rg2' in datapath:
+            del datapath['xlinker/rg2']
         datapath.create_dataset('xlinker/asphericity', data=asphericity, dtype='f')
         datapath.create_dataset('xlinker/acylindricity', data=acylindricity, dtype='f')
         datapath.create_dataset('xlinker/anisotropy', data=anisotropy, dtype='f')
@@ -225,7 +236,7 @@ def cluster_radial_distances(pos0, pos1, labels, box_size, save=False, savepath=
                 d_xyz[jdim,:][ d_xyz[jdim,:] > 0.5*box_size[jdim] ] -= box_size[jdim]
             distances = np.linalg.norm(d_xyz, axis=0)
             DD[:,jframe] += np.histogram(distances,bins)[0]
-        DD[:,jframe] = DD[:,jframe] / np.sum( DD[:,jframe])
+        DD[:,jframe] = DD[:,jframe] / np.sum( DD[:,jframe]*np.diff(bins))
 
     if save and savepath is not None:
         fig,(ax,ax2) = plt.subplots(1,2,figsize=(8,3))
@@ -250,6 +261,10 @@ def cluster_radial_distances(pos0, pos1, labels, box_size, save=False, savepath=
         plt.close()
         
     if datapath is not None:
+        if 'xlinker/com_dist_val' in datapath:
+            del datapath['xlinker/com_dist_val']
+        if 'xlinker/com_dist_pdf' in datapath:
+            del datapath['xlinker/com_dist_pdf']
         datapath.create_dataset('xlinker/com_dist_val', data=0.5*(bins[1:]+bins[:-1]), dtype='f')
         datapath.create_dataset('xlinker/com_dist_pdf', data=np.mean(DD,axis=1), dtype='f')
 # }}}

@@ -27,6 +27,7 @@ from src.CalcCrosslinkerOrientations import PlotXlinkOrientations
 from src.CalcRDF import PlotRDF, PlotRDF_PAP
 from src.Write3DOrientation2vtk import Write3DOrientation2vtk
 from src.CalcCrosslinkerPositionOnFilament import PlotCrosslinkerPositionOnFilament, PlotCrosslinkerLength
+from src.CalcExtensileMotors import PlotExtensileFilamentPairs
 
 def main( params):
 
@@ -44,7 +45,7 @@ def main( params):
     # analysis data h5py
     if Path.exists(datapath):
         os.system('rm {0}'.format(str(datapath)) )
-    data_filestream = h5py.File( datapath, "w")
+    data_filestream = h5py.File( datapath, "a")
     params['data_filestream'] = data_filestream
 
     print('_'*50)
@@ -86,8 +87,12 @@ def main( params):
     
     # Order parameters
     if cfg['PlotGlobalOrderParameters']:
-        PlotNematicOrder( FData, savepath/ 'graph_nematic_order.pdf')     
-        PlotPolarOrder( FData, savepath / 'graph_polar_order.pdf')     
+        PlotNematicOrder( FData, params, savepath/ 'graph_nematic_order.pdf')     
+        PlotPolarOrder( FData, params, savepath / 'graph_polar_order.pdf')     
+
+    # Fraction Extensile Motors
+    if cfg['PlotExtensileMotors']:
+        PlotExtensileFilamentPairs(FData, XData, params, savepath / 'graph_extensile_motors.pdf')
     # }}}
 
     # Correlations {{{
@@ -111,7 +116,7 @@ def main( params):
 
     # Dynamics {{{
     if cfg['PlotDynamics']:
-        PlotMSD(FData, savepath / 'graph_msd.pdf')
+        PlotMSD(FData, params, savepath / 'graph_msd.pdf',N=200)
         PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
     # }}}
 
@@ -141,7 +146,7 @@ def main( params):
 
     # Filament Condensation / Clustering
     if cfg['ComputeFilamentClusters']:
-        PlotFilamentClusters(FData, params, N=400)
+        PlotFilamentClusters(FData, params, N=200)
         
     # Crosslinker Clusters
     if cfg['ComputeCrosslinkerClusters']:

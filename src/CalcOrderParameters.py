@@ -2,9 +2,10 @@ from numba import njit
 import numpy as np
 import src.decorators
 from src.DataHandler import *
+import pdb
 
 # Plotting
-def PlotNematicOrder(FData, savepath):
+def PlotNematicOrder(FData, params, savepath):
     """ Plot the global nematic order over time """
 
     print('Plotting Nematic Order')
@@ -24,8 +25,14 @@ def PlotNematicOrder(FData, savepath):
 
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
+    plt.close()
 
-def PlotPolarOrder(FData, savepath):
+    # save to h5py
+    if 'filament/nematic_order' in params['data_filestream']:
+        del params['data_filestream']['filament/nematic_order'] 
+    params['data_filestream'].create_dataset('filament/nematic_order', data=S, dtype='f')
+
+def PlotPolarOrder(FData, params, savepath):
     """ Plot the global polar order over time """
 
     print('Plotting Polar Order')
@@ -45,6 +52,12 @@ def PlotPolarOrder(FData, savepath):
 
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
+    plt.close()
+
+    # save to h5py
+    if 'filament/polar_order' in params['data_filestream']:
+        del params['data_filestream']['filament/polar_order']
+    params['data_filestream'].create_dataset('filament/polar_order', data=P, dtype='f')
 
 def PlotZOrder(FData, savepath):
     """ Plot the Z orientational order over time """
@@ -164,6 +177,69 @@ def calc_nematic_tensor( orient_array):
     # complete mean calculation by dividing by number of filaments and subtracting identity.
     Q = Q/n_fil - np.identity(3)/3
     return Q
+
+def calc_nematic_basis( orient_array):
+    """
+    Calculates the nematic basis vectors, with the first being the nematic director 
+    Inputs: 
+        orient_array : 3 x N (where N is number of filaments)
+    """
+
+    # Num filaments
+    n_fil = orient_array.shape[1]
+
+    # Find Q tensor
+    Q = calc_nematic_tensor(orient_array)
+
+    # Find eigenvectors and eigenvalues
+    eigval, eigvec = np.linalg.eig(Q)
+
+    # Nematic director is the eignevector correponding to the largest eigenvalue
+    # This is the new z axis
+    idxMax = np.where( eigval == max(eigval) )[0][0]
+    znew = eigvec[:,idxMax]
+
+    # Find the other two vectors
+    idxOther = [ii  for ii in range(3) if ii != idxMax]
+
+    if np.dot(np.cross(eigvec[:,idxOther[0]],eigvec[:,idxOther[1]]),znew)>0.99:
+        e1 = eigvec[:,idxOther[0]]
+        e2 = eigvec[:,idxOther[1]]
+    elif np.dot(np.cross(eigvec[:,idxOther[1]],eigvec[:,idxOther[0]]),znew)>0.99:
+        e1 = eigvec[:,idxOther[1]]
+        e2 = eigvec[:,idxOther[0]]
+    else:
+        raise Exception('Basis not found')
+
+    # Define basis
+    basis = np.zeros((3,3))
+    basis[:,0] = e1
+    basis[:,1] = e2
+    basis[:,2] = znew
+    return basis
+
+# def calc_nematic_director_over_time( orient_array):
+    # """
+    # Calculates the nematic director over time 
+    # Inputs: 
+        # orient_array : 3 x N X T (where N is number of filaments, T is the number of frames)
+    # """
+    # nframe = orient_array.shape[2]
+    # director = np.zeros( (3,nframe) )
+
+    # for jframe in np.arange(nframe):
+
+        # # Find nematic tensor
+        # Q = calc_nematic_tensor( orient)
+
+        # # Find nematic director
+        # eigval, eigvec = np.linalg.eig(Q)
+
+        # # Nematic director is the eignevector correponding to the largest eigenvalue
+        # idxMax = np.where( eigval == max(eigval) )[0][0]
+        # director[:,jframe] = eigvec[:,idxMax]
+
+    
 
 # @njit
 def calc_z_ordering( orient_array):

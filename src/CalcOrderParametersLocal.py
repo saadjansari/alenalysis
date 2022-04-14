@@ -87,7 +87,7 @@ def PlotLocalNematicOrderContactNumberHistogram( FData, savepath, N=300):
     fig,ax = plt.subplots()
     im = ax.hist2d(SOrder, Cnumber,
            bins = [xgrid, ygrid], density=True,
-           norm = colors.LogNorm(),cmap ="viridis")
+           cmap ="viridis")
     fig.colorbar(im[3], ax=ax, label="Density")
     ax.set(xlabel='Local nematic order', ylabel='Contact number')
     plt.tight_layout()
@@ -109,7 +109,7 @@ def PlotLocalPolarOrderContactNumberHistogram( FData, savepath, N=300):
     fig,ax = plt.subplots()
     im = ax.hist2d(POrder, Cnumber,
            bins = [xgrid, ygrid], density=True,
-           norm = colors.LogNorm(),cmap ="viridis")
+           cmap ="viridis")
     fig.colorbar(im[3], ax=ax, label="Density")
     ax.set(xlabel='Local polar order', ylabel='Contact number')
     plt.tight_layout()
@@ -131,7 +131,7 @@ def PlotLocalNematicOrderLocalPolarOrderHistogram( FData, savepath, N=300):
     fig,ax = plt.subplots()
     im = ax.hist2d(SOrder, POrder,
            bins = [xgrid, ygrid], density=True,
-           norm = colors.LogNorm(),cmap ="viridis")
+           cmap ="viridis")
     fig.colorbar(im[3], ax=ax, label="Density")
     ax.set(xlabel='Local nematic order', ylabel='Local polar order')
     plt.tight_layout()

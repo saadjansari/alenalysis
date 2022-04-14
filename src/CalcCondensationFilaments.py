@@ -1,15 +1,18 @@
 from numba import njit
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib as mpl
 import src.decorators
 from src.CalcMobility import calc_mobility
 from src.CalcNumXlinks import calc_num_xlink_filament
 import pdb
+from pathlib import Path
+import pickle
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans, DBSCAN
 import seaborn as sns
-from src.CalcOrderParameters import calc_nematic_tensor
+from src.CalcOrderParameters import calc_nematic_tensor, calc_nematic_basis
 from src.CalcMSD import calc_msd_fft
 from scipy.spatial.distance import pdist, squareform
 from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
@@ -18,26 +21,60 @@ from src.write2vtk import add_array_to_vtk
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors
 from src.unfold_trajectories import unfold_trajectories_njit, unfold_trajectory_njit
+from src.DataHandler import AddCorrelationsToDataSeries
+from src.multicolored_line import plot_multicolored_lines
+from src.CalcBundleTwist import calc_bundle_twist
+from src.calc_com_pbc import calc_com_pbc
+from src.calc_pdist_pbc import pdist_pbc, pdist_pbc_xyz_max
+from src.connected_components import get_nodes_in_clusters
 
 # PlotFilamentCondensation {{{
 def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     """ Plot the filament condensation """
 
     plot_ratio_condensed_filaments=True
-    plot_diffusion=False
+    plot_diffusion=True
     plot_packing_fraction=False
     plot_local_order=False
     plot_time_averaged_label=False
-    plot_trajectories=False
+    plot_trajectories=True
+    plot_residence_times = False
+    plot_bundle_twist = True
+    plot_aspect_ratio= True
     
     print('Filaments condensation...') 
-    labels, ratio = condensed_via_xlinks_and_mobility(XData, FData, save=True, 
+    # FData = AddCorrelationsToDataSeries(FData, params['sim_path'])
+    # labels, ratio = condensed_via_xlinks_and_mobility(XData, FData, save=True, 
+            # savepath=params['plot_path'] / 'condensed_filament_positions.pdf',
+            # datapath=params['data_filestream'], write2vtk=write2vtk, simpath=params['sim_path'])
+    # labels, ratio = condensed_multidimensional(XData, FData, save=True, 
+            # savepath=params['plot_path'] / 'condensed_filament_positions.pdf',
+            # datapath=params['data_filestream'], write2vtk=write2vtk, simpath=params['sim_path'])
+    labels, ratio = condensed_networkx(XData, FData, params, save=True, 
             savepath=params['plot_path'] / 'condensed_filament_positions.pdf',
             datapath=params['data_filestream'], write2vtk=write2vtk, simpath=params['sim_path'])
-    pdb.set_trace()
+
+    if plot_aspect_ratio:
+        condensed_aspect_ratio(FData.get_com(), FData.orientation_,labels, 
+                FData.config_['box_size'],
+                save=True, savepath=params['plot_path'] / 'condensed_aspect_ratio.pdf',
+                datapath=params['data_filestream'])
+
+    if plot_bundle_twist:
+        twist,rdist = CalcBundleTwist(FData, labels, N=100,
+                savepath=params['plot_path'] / 'condensed_bundle_twist.pdf',
+                datapath=params['data_filestream'])
+        PlotHistBundleTwist_vs_RadialDist(twist,rdist,
+                savepath=params['plot_path'] / 'condensed_bundle_twist_vs_radial_dist.pdf')
+        Plot2DBundleTwist_NematicBasis(FData, labels,
+                savepath=params['plot_path'] / 'condensed_bundle_twist_cartesian.pdf')
+        Plot3DBundleTwist(FData, labels, nematic_basis=False,
+                savepath=params['plot_path'] / 'condensed_bundle_twist_3d.pdf')
+        Plot3DBundleTwist(FData, labels, nematic_basis=True,
+                savepath=params['plot_path'] / 'condensed_bundle_twist_3d_nematic.pdf')
 
     if plot_trajectories:
-        PlotCondensedTrajectories(FData, labels, N=20,
+        PlotCondensedTrajectories(FData, labels, N=100,
             savepath=params['plot_path'] / 'condensed_trajectories.pdf')
 
     # Plot ratio of condensed filaments over time
@@ -68,13 +105,16 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
 
     # Plot Local Polar Order
     if plot_local_order:
+        FData = AddCorrelationsToDataSeries(FData, params['sim_path'])
         PlotCondensedLocalOrder(FData, labels,
                 savedir=params['plot_path'],
                 datapath=params['data_filestream'])
-        
-    PlotResidenceTimes(labels, N=400, dt=0.05,
+
+    if plot_residence_times:
+        PlotResidenceTimes(labels, N=800, dt=0.05,
                 savepath=params['plot_path'] / 'condensed_residence_times.pdf',
                 datapath=params['data_filestream'])
+        
 # }}}
 
 # PlotFilamentClusters {{{
@@ -101,18 +141,18 @@ def PlotFilamentClusters(FData, params, N=50):
     PlotHistClusterNumbers(labels, savepath=params['plot_path']/'cluster_filament_numbers.pdf', save=True, datapath=params['data_filestream'])
 
     # Plot cluster astral order
-    PlotClusterAstralOrder( FData.pos_plus_[:,:,frames], FData.pos_minus_[:,:,frames], 
-            labels, FData.config_['box_size'], 
-            savepath=params['plot_path']/'cluster_filament_astral_order.pdf', 
-            save=True, datapath=params['data_filestream'])
-    # PlotClusterAstralOrder( FData.pos_plus_[:2,:,frames], FData.pos_minus_[:2,:,frames], 
-            # labels, FData.config_['box_size'][:2], 
-            # savepath=params['plot_path']/'cluster_filament_astral_order_XY.pdf', 
+    # PlotClusterAstralOrder( FData.pos_plus_[:,:,frames], FData.pos_minus_[:,:,frames], 
+            # labels, FData.config_['box_size'], 
+            # savepath=params['plot_path']/'cluster_filament_astral_order.pdf', 
             # save=True, datapath=params['data_filestream'])
+            
+    # Plot cluster astral order 2D
+    PlotClusterAstralOrder( FData.pos_plus_[:2,:,frames], FData.pos_minus_[:2,:,frames], 
+            labels, FData.config_['box_size'][:2], 
+            savepath=params['plot_path']/'cluster_filament_astral_order_XY.pdf', 
+            save=True, datapath=params['data_filestream'])
 
-    # temp save labels
-    # print('Temporary Label save HERE')
-    # np.savetxt(params['sim_path'] / 'fil_labels.out', labels, delimiter=',',fmt='%.0f')
+    # Filament diffusion within cluster
     cluster_msd_diffusion(FData, labels_tracked, save=True, dt=0.05,
             savepath=params['plot_path'] / 'cluster_filament_msd.pdf',
             datapath=params['data_filestream'])
@@ -161,30 +201,29 @@ def condensed_via_xlinks_and_mobility(XData, FData, savepath=None, save=False, d
     scaler = StandardScaler().fit(data)
     X_std = scaler.transform(data)
 
-    clustering_type = 'gmm'
-    if clustering_type == 'kmeans':
-        model = KMeans(n_clusters=n_clusters, random_state=0).fit( scaler.transform(data_fit))
-        centers = model.cluster_centers_
-    elif clustering_type == 'gmm':
-        # model = GaussianMixture(n_components=n_clusters).fit( scaler.transform(data_fit))
-        model = GaussianMixture(n_components=n_clusters).fit( data_fit)
-        centers = model.means_
-        # Model score
-        print('GMM BIC score = {0:.2f}'.format( model.bic(data) ) )
+    model = GaussianMixture(n_components=n_clusters).fit( data_fit)
+    centers = model.means_
+    # Model score
+    print('GMM BIC score = {0:.2f}'.format( model.bic(data) ) )
 
     # labels = model.predict( scaler.transform(data))
     labels = model.predict( data)
-    df = pd.DataFrame( np.hstack( (data, labels.flatten().reshape(-1,1)))[::500,:], columns=['nx','mobi', 'label'])
-    
-    # Edit labels so that free filaments are label -1, and condensed ones are 0
-    clabel = np.argsort(centers[:,0])[-1]
+    if model.bic(data) < 0:
+        print('Clustering score too low! No condensed state found')
+        labels[:] = -1
+        labels = np.reshape(labels, nx.shape)
 
-    labels[labels!=clabel] = -1
-    labels[labels==clabel] = 0 
+    else:
+        
+        # Edit labels so that free filaments are label -1, and condensed ones are 0
+        clabel = np.argsort(centers[:,0])[-1]
 
-    # set any uncertain mpoints to vapor
-    labels[ np.where(np.max(model.predict_proba( data), axis=1)<0.8)[0] ] = -1
-    labels = np.reshape(labels, nx.shape)
+        labels[labels!=clabel] = -1
+        labels[labels==clabel] = 0 
+
+        # set any uncertain mpoints to vapor
+        labels[ np.where(np.max(model.predict_proba( data), axis=1)<0.8)[0] ] = -1
+        labels = np.reshape(labels, nx.shape)
 
     # Plot filaments of last frame
     if save:
@@ -218,6 +257,203 @@ def condensed_via_xlinks_and_mobility(XData, FData, savepath=None, save=False, d
     
     if datapath is not None:
         # save ratio to h5py
+        if 'filament/condensed_ratio' in datapath:
+            del datapath['filament/']
+        datapath.create_dataset('filament/condensed_ratio', data=ratio, dtype='f')
+        
+    if write2vtk:
+        add_array_to_vtk(labels, 'Condensed', simpath)
+
+    return labels, ratio
+# }}}
+
+# condensed_multidimensional {{{
+def condensed_multidimensional(XData, FData, savepath=None, save=False, datapath=None, write2vtk=False, simpath=None):
+    """ cluster using multidimensional"""
+
+    # Get Data
+    # Use last N frames
+    nframe = FData.nframe_
+    N=200
+    
+    # Local nematic order 
+    lpo = FData.local_nematic_order
+    # SET ANY NANS TO 0
+    lpo[ np.isnan(lpo)] = 0
+    nframe = min([nframe, lpo.shape[-1]])
+    lpo = lpo[:,:nframe]
+    frames_use = np.arange(nframe-N, nframe)
+    lpo_use = lpo[:,frames_use]
+    
+
+    # Crosslinker number
+    nxs,nxd = calc_num_xlink_filament(XData.link0_, XData.link1_, FData.nfil_)
+    nx = nxd[:,:nframe]
+    # Set any nx<3 -----> 0
+    # nx[ nx < 3] = 0
+    nx_use = nx[:,frames_use]
+
+    # mobility
+    pos_unfolded = FData.unfold_trajectories('plus')
+    mobi = calc_mobility(pos_unfolded, windowSize=5)[:,:nframe]
+    mobi_use = mobi[:,frames_use]
+
+
+    # Convert to dataframe
+    names = ['Local Nematic Order', 'Mobility','Crosslinker Number']
+    data_fit = np.zeros((nx_use.size,3))
+    data_fit[:,0] = lpo_use.flatten()
+    data_fit[:,1] = mobi_use.flatten()
+    data_fit[:,2] = nx_use.flatten()
+    data = np.zeros((nx.size,3))
+    data[:,0] = lpo.flatten()
+    data[:,1] = mobi.flatten()
+    data[:,2] = nx.flatten()
+
+    n_clusters = 2
+    scaler = StandardScaler().fit(data)
+    X_std = scaler.transform(data)
+
+    model = GaussianMixture(n_components=n_clusters).fit( data_fit)
+    centers = model.means_
+    # Model score
+    print('GMM BIC score = {0:.2f}'.format( model.bic(data) ) )
+    print(names)
+    print(model.means_) 
+
+    # labels = model.predict( scaler.transform(data))
+    # Determine if clustering worked
+    # Mean crosslinker number of atleast one cluster above 7
+    labels = model.predict( data)
+    if np.max(model.means_[:,-1]) < 7:
+        print('No crosslinker-dense condensed state found. Clustering result rejected')
+        labels[:] = -1
+        labels = np.reshape(labels, nx.shape)
+
+    else:
+        
+        # Edit labels so that free filaments are label -1, and condensed ones are 0
+        clabel = np.argsort(centers[:,0])[-1]
+
+        labels[labels!=clabel] = -1
+        labels[labels==clabel] = 0 
+
+        # set any uncertain mpoints to vapor
+        labels[ np.where(np.max(model.predict_proba( data), axis=1)<0.8)[0] ] = -1
+        labels = np.reshape(labels, nx.shape)
+
+    # Plot filaments of last availabel frame
+    if save:
+        jf = nframe-1
+        p0 = FData.pos_minus_[:,:,jf]
+        p1 = FData.pos_plus_[:,:,jf]
+        fig,ax = plt.subplots(1,3, figsize=(12,4))
+        colors = ['Gray','Teal']
+        alphas = [0.1,0.3]
+        labs= ['Vapor', 'Condensed']
+        for jc in range(2):
+            # plot all points
+            idx = labels[:,-1]==jc-1
+            ax[0].scatter( p1[0,idx], p1[1,idx], color=colors[jc], label=labs[jc], s=2, alpha=alphas[jc])
+            ax[1].scatter( p1[0,idx], p1[2,idx], color=colors[jc], label=labs[jc], s=2, alpha=alphas[jc])
+            ax[2].scatter( p1[1,idx], p1[2,idx], color=colors[jc], label=labs[jc], s=2, alpha=alphas[jc])
+        ax[0].legend()
+        ax[0].set(xlabel=r'X ($\mu m$)',ylabel=r'Y ($\mu m$)')
+        ax[1].set(xlabel=r'X ($\mu m$)',ylabel=r'Z ($\mu m$)')
+        ax[2].set(xlabel=r'Y ($\mu m$)',ylabel=r'Z ($\mu m$)')
+        plt.tight_layout()
+        plt.savefig(savepath)
+    plt.close()
+
+    ratio = np.zeros( labels.shape[1])
+    for jt in range(labels.shape[1]):
+        ratio[jt] = np.sum(labels[:,jt] != -1) / labels.shape[0]
+
+    print('Condensed Fraction = {0:.2f} +- {1:.3f}'.format(
+        np.mean(ratio[-50:]), np.std(ratio[-50:])))
+    
+    if datapath is not None:
+        # save ratio to h5py
+        if 'filament/condensed_ratio' in datapath:
+            del datapath['filament/condensed_ratio']
+        datapath.create_dataset('filament/condensed_ratio', data=ratio, dtype='f')
+        
+    if write2vtk:
+        add_array_to_vtk(labels, 'Condensed', simpath)
+
+    labels_full = np.zeros((FData.nfil_,FData.nframe_))
+    labels_full[:] = -1
+    labels_full[:,:nframe] = labels
+    return labels_full, ratio
+# }}}
+
+# condensed_networkx{{{
+def condensed_networkx(XData, FData, params, savepath=None, save=False, datapath=None, write2vtk=False, simpath=None):
+    """ cluster using networkx"""
+
+    nframe = FData.nframe_
+    labels = np.zeros( (FData.nfil_, nframe) )
+    labels[:] = -1
+    
+    fastpath_c = params['sim_path'] / 'CondensedLabel.pickle'
+    if Path.exists(fastpath_c):
+        with open(fastpath_c, "rb") as fp:
+            labels_load = pickle.load(fp)
+        start_frame = labels_load.shape[1]
+        labels[:,:start_frame] = labels_load
+    else:
+        start_frame = 0
+        
+    # for each frame, run network analysis to find xlinked cluster
+    for jframe in np.arange(start_frame,nframe):
+        _,bool_list = get_nodes_in_clusters(
+                FData.gid_[:,jframe].astype(int), 
+                XData.link0_[:,jframe].astype(int),
+                XData.link1_[:,jframe].astype(int),
+                )
+        labels[bool_list, jframe] = 0
+        print('############ Finding Condensed State = {0}/{1} ({2:.0f}%) ############'.format(
+            1+jframe,
+            nframe, 
+            100*(1+jframe)/nframe), end='\r',flush=True)
+    print('############ Finding Condensed State = {0}/{0} (100%) ############'.format(nframe))
+    with open(fastpath_c, "wb") as fp:
+        pickle.dump(labels, fp)
+
+    # Plot filaments of last availabel frame
+    if save:
+        jf = nframe-1
+        p0 = FData.pos_minus_[:,:,jf]
+        p1 = FData.pos_plus_[:,:,jf]
+        fig,ax = plt.subplots(1,3, figsize=(12,4))
+        colors = ['Gray','Teal']
+        alphas = [0.1,0.3]
+        labs= ['Vapor', 'Condensed']
+        for jc in range(2):
+            # plot all points
+            idx = labels[:,-1]==jc-1
+            ax[0].scatter( p1[0,idx], p1[1,idx], color=colors[jc], label=labs[jc], s=2, alpha=alphas[jc])
+            ax[1].scatter( p1[0,idx], p1[2,idx], color=colors[jc], label=labs[jc], s=2, alpha=alphas[jc])
+            ax[2].scatter( p1[1,idx], p1[2,idx], color=colors[jc], label=labs[jc], s=2, alpha=alphas[jc])
+        ax[0].legend()
+        ax[0].set(xlabel=r'X ($\mu m$)',ylabel=r'Y ($\mu m$)')
+        ax[1].set(xlabel=r'X ($\mu m$)',ylabel=r'Z ($\mu m$)')
+        ax[2].set(xlabel=r'Y ($\mu m$)',ylabel=r'Z ($\mu m$)')
+        plt.tight_layout()
+        plt.savefig(savepath)
+    plt.close()
+
+    ratio = np.zeros( labels.shape[1])
+    for jt in range(labels.shape[1]):
+        ratio[jt] = np.sum(labels[:,jt] != -1) / labels.shape[0]
+
+    print('Condensed Fraction = {0:.2f} +- {1:.3f}'.format(
+        np.mean(ratio[-50:]), np.std(ratio[-50:])))
+    
+    if datapath is not None:
+        # save ratio to h5py
+        if 'filament/condensed_ratio' in datapath:
+            del datapath['filament/condensed_ratio']
         datapath.create_dataset('filament/condensed_ratio', data=ratio, dtype='f')
         
     if write2vtk:
@@ -431,6 +667,8 @@ def cluster_shape_analysis_extent(pos, labels, box_size, savepath=None, save=Fal
     
     if datapath is not None:
         # save ratio to h5py
+        if 'filament/cluster_extent_xyz' in datapath:
+            del datapath['filament/cluster_extent_xyz']
         datapath.create_dataset('filament/cluster_extent_xyz', data=std, dtype='f')
 # }}}
 
@@ -457,6 +695,14 @@ def cluster_shape_analysis(pos, labels, box_size, datapath=None):
             rg2.append( G_data["Rg2"])
     
     if datapath is not None:
+        if 'filament/asphericity' in datapath:
+            del datapath['filament/asphericity']
+        if 'filament/acylindricity' in datapath:
+            del datapath['filament/acylindricity']
+        if 'filament/anisotropy' in datapath:
+            del datapath['filament/anisotropy']
+        if 'filament/rg2' in datapath:
+            del datapath['filament/rg2']
         datapath.create_dataset('filament/asphericity', data=asphericity, dtype='f')
         datapath.create_dataset('filament/acylindricity', data=acylindricity, dtype='f')
         datapath.create_dataset('filament/anisotropy', data=anisotropy, dtype='f')
@@ -497,6 +743,10 @@ def cluster_nematic_order(pos, ort, labels, datapath=None):
 
     if datapath is not None:
         # save ratio to h5py
+        if 'filament/cluster_Smax' in datapath:
+            del datapath['filament/cluster_Smax']
+        if 'filament/cluster_Sxyz' in datapath:
+            del datapath['filament/cluster_Sxyz']
         datapath.create_dataset('filament/cluster_Smax', data=Smax, dtype='f')
         datapath.create_dataset('filament/cluster_Sxyz', data=Sxyz, dtype='f')
 # }}}
@@ -540,6 +790,27 @@ def cluster_msd_diffusion(FData, labels, dt=0.05, save=False, savepath=None, dat
             if len(idx_jc) > 0:
                 pos_unfolded[:,idx_jc,jFrame] = pos_unfolded[:,idx_jc,jFrame]-pos_cluster_unfolded[:,jFrame,idxc].reshape(-1,1)
 
+    # plot sample trajectories
+    pos_centered = pos_unfolded-pos_unfolded[:,:,0].reshape(pos_unfolded.shape[0],-1,1)
+    
+    jplot = np.random.choice( pos_centered.shape[1], 5, replace=False)
+    fig,ax = plt.subplots()
+    ax = plot_multicolored_lines( 
+            pos_centered[0,jplot,::5], 
+            pos_centered[1,jplot,::5],
+            dt*np.arange( pos_centered.shape[-1])[::5],
+            ax,
+            label='Time (s)',
+            alpha=0.3,
+            lw=3
+            )
+    ax.set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$')
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig(savepath.parent / 'filament_motion_within cluster.pdf')
+    plt.close()
+
+
     # MSD
     timeArray = dt * np.arange(labels.shape[1])
     MSD = calc_msd_fft( pos_unfolded)
@@ -566,9 +837,17 @@ def cluster_msd_diffusion(FData, labels, dt=0.05, save=False, savepath=None, dat
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
 
-    # if datapath is not None:
-        # # save ratio to h5py
-        # datapath.create_dataset('filament/cluster_msd_slope', data=slope_middle, dtype='f')
+    if datapath is not None:
+        # save ratio to h5py
+        if 'filament/cluster/msd' in datapath:
+            del datapath['filament/cluster/msd']
+        if 'filament/cluster/msd_std' in datapath:
+            del datapath['filament/cluster/msd_std']
+        if 'filament/cluster/msd_lagtime' in datapath:
+            del datapath['filament/cluster/msd_lagtime']
+        datapath.create_dataset('filament/cluster/msd', data=np.nanmean(MSD, axis=0), dtype='f')
+        datapath.create_dataset('filament/cluster/msd_std', data=np.nanstd(MSD, axis=0), dtype='f')
+        datapath.create_dataset('filament/cluster/msd_lagtime', data=timeArray, dtype='f')
 # }}}
 
 # condensed_msd_diffusion {{{
@@ -577,7 +856,6 @@ def condensed_msd_diffusion(pos, labels, N=400, dt=1, save=False, savepath=None,
     # Get the filaments that are condensed for the last N frames
     idx = np.sum( labels[:,-1*N:], axis=1) == 0
     pos_condensed = pos[:,idx,-1*N:]
-
 
     # MSD
     timeArray = dt * np.arange(N)
@@ -607,58 +885,9 @@ def condensed_msd_diffusion(pos, labels, N=400, dt=1, save=False, savepath=None,
 
     if datapath is not None:
         # save ratio to h5py
+        if 'filament/condensed_msd_slope' in datapath:
+            del datapath['filament/condensed_msd_slope']
         datapath.create_dataset('filament/condensed_msd_slope', data=slope_middle, dtype='f')
-# }}}
-
-# pdist_pbc {{{
-def pdist_pbc(pos, box_size):
-    """ pos is dimension N x 3 """
-    for jd in range(pos.shape[1]):
-        pd = pdist(pos[:,jd].reshape(-1,1))
-        pd[ pd > 0.5*box_size[jd] ] -= box_size[jd]
-        try:
-            total += pd**2
-        except:
-            total = pd**2
-    total = squareform( np.sqrt(total) )
-    return total
-# }}}
-
-# pdist_pbc_xyz_max {{{
-def pdist_pbc_xyz_max(pos, box_size):
-    """ pos is dimension N x 3 """
-    dist_xyz = np.zeros(3)
-    for jd in range(pos.shape[1]):
-        pd = pdist(pos[:,jd].reshape(-1,1))
-        pd[ pd > 0.5*box_size[jd] ] -= box_size[jd]
-        dist_xyz[jd] = np.max( np.abs(pd) )
-    return dist_xyz 
-# }}}
-
-# calc_com_pbc {{{
-def calc_com_pbc(pos, box_size):
-    """ calulate com of pos (N x 3) with pbc """
-    
-    # Map each dimension from a line to a circle.
-    com = np.zeros(pos.shape[1])
-    for jd in range(pos.shape[1]):
-        angle = 2*np.pi*pos[:,jd]/box_size[jd]
-
-        # Get coordinates for a point on a circle for each particle in this dimension
-        costheta = np.cos(angle)
-        sintheta = np.sin(angle)
-
-        # Get mean coordinate in this dimension
-        costheta_com = np.mean(costheta)
-        sintheta_com = np.mean(sintheta)
-
-        # Find an angle associated with this point
-        angle_com = np.arctan2(-1*sintheta_com, -1*costheta_com) + np.pi
-        
-        # Transform back to line
-        com[jd] = angle_com*box_size[jd]/(2*np.pi)
-
-    return com
 # }}}
 
 # packing_fraction {{{
@@ -697,6 +926,10 @@ def packing_fraction( pos_minus, pos_plus, config, labels,
 
     if datapath is not None:
         # save ratio to h5py
+        if 'filament/condensed_pf' in datapath:
+            del datapath['filament/condensed_pf']
+        if 'filament/vapor_pf' in datapath:
+            del datapath['filament/vapor_pf']
         datapath.create_dataset('filament/condensed_pf', data=pf_c, dtype='f')
         datapath.create_dataset('filament/vapor_pf', data=pf_v, dtype='f')
 # }}}
@@ -728,6 +961,10 @@ def PlotHistClusterNumbers(labels, savepath=None, save=False, datapath=None):
 
     if save and datapath is not None:
         # save to h5py
+        if 'filament/num_in_cluster' in datapath:
+            del datapath['filament/num_in_cluster']
+        if 'filament/num_cluster' in datapath:
+            del datapath['filament/num_cluster']
         datapath.create_dataset('filament/num_in_cluster', data=cluster_size, dtype='f')
         datapath.create_dataset('filament/num_cluster', data=n_clusters, dtype='f')
 # }}}
@@ -778,7 +1015,7 @@ def PlotClusterAstralOrder(pos_plus, pos_minus, labels, box_size, savepath=None,
             xi = xi/np.linalg.norm( xi, axis=0)
 
             # Find dot product and take avergae over all filaments
-            astral_order_j = np.sum( xi*f_com, axis=0)**2
+            astral_order_j = np.sum( xi*f_com, axis=0)
             astral_order_all.append( np.mean( astral_order_j) )
             try:
                 ast.append( np.mean( astral_order_j) )
@@ -805,12 +1042,14 @@ def PlotClusterAstralOrder(pos_plus, pos_minus, labels, box_size, savepath=None,
 
     if save and datapath is not None:
         # save to h5py
+        if 'filament/astral_order_time' in datapath:
+            del datapath['filament/astral_order_time']
         datapath.create_dataset('filament/astral_order_time', data=astral_order_time, dtype='f')
         # datapath.create_dataset('filament/', data=n_clusters, dtype='f')
 # }}}
 
 # PlotCondensedLocalOrder {{{
-def PlotCondensedLocalOrder(FData, labels, N=200, savedir=None, datapath=None):
+def PlotCondensedLocalOrder(FData, labels, N=300, savedir=None, datapath=None):
     """ find Local Polar Order of condensed filaments """
     
     # Check if Local Order has been found. If not, raise error
@@ -833,22 +1072,38 @@ def PlotCondensedLocalOrder(FData, labels, N=200, savedir=None, datapath=None):
     lpo_pdf = np.histogram(lpo.flatten(), density=True, bins=bins_lpo)[0]
     lno_pdf = np.histogram(lno.flatten(), density=True, bins=bins_lno)[0]
 
+
     # Plot LPO, LNO
     if savedir:
         fig,(ax0, ax1) = plt.subplots(1,2, figsize=(8,3))
-        # ax0.hist(lno.flatten(), bins=np.linspace(0,1,25), density=True)[-1]
-        ax0.hist( lno_pdf, bins_lno, density=True, edgecolor='white', linewidth=1.0, alpha=0.4, color = 'k')
-        ax0.plot(bins_lno_cen, lno_pdf, linewidth=2, color='k')
-        ax0.set(xlabel='Local nematic order', ylabel='Probablity density' )
-        ax1.hist( lpo_pdf, bins_lpo, density=True, edgecolor='white', linewidth=1.0, alpha=0.4, color = 'k')
-        ax1.plot(bins_lpo_cen, lpo_pdf, linewidth=2, color='k')
-        ax1.set(xlabel='Local polar order', ylabel='Probablity density' )
+        sns.histplot(lno.flatten(), kde=True,
+             bins=bins_lno, color = 'darkblue',
+             edgecolor='black',
+             line_kws={'linewidth': 4}, ax=ax0)
+        ax0.set_xlabel('Local nematic order')
+        sns.histplot(lpo.flatten(), kde=True,
+             bins=bins_lpo, color = 'darkblue',
+             edgecolor='black',
+             line_kws={'linewidth': 4}, ax=ax1)
+        ax1.set_xlabel('Local polar order')
         plt.tight_layout()
         plt.savefig(savedir/'condensed_local_order.pdf', bbox_inches="tight")
         plt.close()
 
     # save to h5py
     if datapath is not None:
+        if 'filament/condensed_lpo' in datapath:
+            del datapath['filament/condensed_lpo']
+        if 'filament/condensed_lpo_bin_centers' in datapath:
+            del datapath['filament/condensed_lpo_bin_centers']
+        if 'filament/condensed_lpo_bin_edges' in datapath:
+            del datapath['filament/condensed_lpo_bin_edges']
+        if 'filament/condensed_lno' in datapath:
+            del datapath['filament/condensed_lno']
+        if 'filament/condensed_lno_bin_centers' in datapath:
+            del datapath['filament/condensed_lno_bin_centers']
+        if 'filament/condensed_lno_bin_edges' in datapath:
+            del datapath['filament/condensed_lno_bin_edges']
         datapath.create_dataset('filament/condensed_lpo', data=lpo_pdf, dtype='f')
         datapath.create_dataset('filament/condensed_lpo_bin_centers', data=bins_lpo_cen, dtype='f')
         datapath.create_dataset('filament/condensed_lpo_bin_edges', data=bins_lpo, dtype='f')
@@ -859,12 +1114,12 @@ def PlotCondensedLocalOrder(FData, labels, N=200, savedir=None, datapath=None):
 # }}}
 
 # PlotCondensedTrajectories {{{
-def PlotCondensedTrajectories(FData, labels, N=10, savepath=None):
+def PlotCondensedTrajectories(FData, labels, N=20, savepath=None):
 
     # Get the filaments that are condensed for the last 200 frames
-    idx = np.sum( labels[:,-200:], axis=1) == 0
-    pos = FData.pos_plus_[:,idx,-200:]
-    pos = FData.unfold_trajectories('plus')[:,idx,-200:]
+    idx = np.sum( labels[:,-1*N:], axis=1) == 0
+    pos = FData.pos_plus_[:,idx,-1*N:]
+    pos = FData.unfold_trajectories('plus')[:,idx,-1*N:]
 
     fig,ax = plt.subplots()
     for jidx in np.random.choice(pos.shape[1], N):
@@ -988,6 +1243,9 @@ def PlotResidenceTimes(labels, N=400, dt=0.05, savepath=None, datapath=None):
     # Residence times
     residence_times = []
 
+    bins = np.linspace(0,20,100)
+    bins_c = 0.5*(bins[1:]+bins[:-1])
+
     # Loop over filaments, and find residence times
     for jfil in np.arange(labels_choose.shape[1]):
 
@@ -1013,8 +1271,12 @@ def PlotResidenceTimes(labels, N=400, dt=0.05, savepath=None, datapath=None):
     
     if savepath is not None:
         fig,ax = plt.subplots()
-        ax.hist(residence_times, 24, density=True, label='N = {0}'.format(len(residence_times) ) )
-        ax.set(xlabel='Residence times (s)',ylabel='Probability density')
+        # ax.hist(residence_times, 24, density=True, label='N = {0}'.format(len(residence_times) ) )
+        sns.histplot(residence_times, kde=True,
+             bins=bins, color = 'darkblue',
+             edgecolor='black',
+             line_kws={'linewidth': 4}, ax=ax)
+        ax.set(xlabel='Residence time (s)',ylabel='Probability density')
         ax.set_xlim(left=0)
         ax.legend(frameon=False)
         plt.tight_layout()
@@ -1023,7 +1285,272 @@ def PlotResidenceTimes(labels, N=400, dt=0.05, savepath=None, datapath=None):
         
     if datapath is not None:
         # save to h5py
+        if 'filament/condensed_residence_time' in datapath:
+            del datapath['filament/condensed_residence_time']
         datapath.create_dataset('filament/condensed_residence_time', data=residence_times, dtype='f')
     # return residence_times
 # }}}
 
+# CalcBundleTwist {{{
+def CalcBundleTwist( FData, labels, N=25, savepath=None, datapath=None):
+
+    frames = np.arange(FData.nframe_-N, FData.nframe_)
+    
+    # get constantly condensed filaments for last N frames
+    idx = np.sum( labels[:,frames], axis=1) == 0
+    n_cond = np.sum(idx)
+    # idx = np.arange(0,FData.nfil_)
+    # n_cond = len(idx)
+    
+    # for each frame, calculate bundle twist
+    twist = np.zeros( (n_cond, N) )
+    rdist = np.zeros( (n_cond, N) )
+    for jframe,cframe in enumerate(frames):
+        twist[:,jframe], rdist[:,jframe] = calc_bundle_twist(
+                FData.get_com()[:,idx,cframe], 
+                FData.orientation_[:,idx,cframe], 
+                np.copy(FData.config_['box_size']) )
+        
+    if datapath is not None:
+        # save to h5py
+        if 'filament/condensed_twist' in datapath:
+            del datapath['filament/condensed_twist']
+        datapath.create_dataset('filament/condensed_twist', data=twist.flatten(), dtype='f')
+        # datapath.create_dataset('filament/', data=n_clusters, dtype='f')
+
+    return twist,rdist
+# }}}
+        
+# PlotHistBundleTwist_vs_RadialDist {{{
+def PlotHistBundleTwist_vs_RadialDist( twist,rdist, savepath=None):
+
+    # evaluate on a regular grid
+    rgrid = np.linspace(0,0.2,40)
+    tgrid = np.linspace(-0.3,0.3,40)
+
+    # Plot the result as an image
+    if savepath is not None:
+        fig,ax = plt.subplots()
+        im = ax.hist2d(rdist.flatten(), twist.flatten(),
+               bins = [rgrid, tgrid], density=True,
+               cmap ="viridis")
+        fig.colorbar(im[3], ax=ax, label="Probability density")
+        ax.set(xlabel=r'Radial distance $(\mu m)$', ylabel='Twist parameter')
+        plt.tight_layout()
+        plt.savefig(savepath, bbox_inches="tight")
+        plt.close()
+# }}}
+         
+# Plot2DBundleTwist_NematicBasis{{{
+def Plot2DBundleTwist_NematicBasis(FData, labels, savepath=None):
+
+    # Get condensed filament indices in last frame
+    idx = labels[:,-1] == 0
+
+    # Get filament com positions 
+    pos = FData.get_com()[:,idx,-1]
+    
+    # Find twist
+    twist,_ = calc_bundle_twist(pos, 
+            FData.orientation_[:,idx,-1], 
+            np.copy(FData.config_['box_size']))
+
+    # Find condensate center of mass
+    com = calc_com_pbc( pos.T, FData.config_['box_size'])
+    
+    # Find filament positions relative to center of mass
+    pos_rel = pos - com.reshape(-1,1)
+
+    # Find nematic basis vectors
+    nbasis = calc_nematic_basis(FData.orientation_[:,idx,-1])
+
+    # Find new filament positions in this nematic basis
+    pos_rot = np.linalg.solve( nbasis, pos_rel)
+
+    if savepath is not None:
+
+        # Plot filaments in X' Y' frame
+        fig,ax = plt.subplots(figsize=(4,3))
+        col0 = twist
+        norm0 = mpl.colors.Normalize(vmin=-0.3, vmax=0.3)
+        cmap0 = mpl.cm.ScalarMappable(norm=norm0, cmap=mpl.cm.jet)
+        cmap0.set_array([])
+        ax.scatter(
+                pos_rot[0,:],
+                pos_rot[1,:],
+                c=cmap0.to_rgba(col0), alpha=0.5)
+        fig.colorbar(cmap0, label=r'Twist $\chi$', ax=ax)
+        ax.set(xlabel=r'$X^\prime (\mu m)$', ylabel=r'$Y^\prime (\mu m)$')
+        plt.tight_layout()
+        plt.savefig(savepath, bbox_inches="tight")
+        plt.close()
+# }}}
+
+# Plot3DBundleTwist{{{
+def Plot3DBundleTwist(FData, labels, nematic_basis=False,savepath=None):
+
+    # Get condensed filament indices in last frame
+    idx = labels[:,-1] == 0
+
+    # Get filament positions 
+    p0 = FData.pos_minus_[:,idx,-1]
+    p1 = FData.pos_plus_[:,idx,-1]
+    pos = FData.get_com()[:,idx,-1]
+
+    # Find condensate center of mass
+    com = calc_com_pbc( pos.T, FData.config_['box_size'])
+
+    # Find filament positions relative to center of mass
+    pos_rel = pos - com.reshape(-1,1)
+    p0_rel = p0 - com.reshape(-1,1)
+    p1_rel = p1 - com.reshape(-1,1)
+    
+    # Find twist
+    twist,_ = calc_bundle_twist(pos, 
+            FData.orientation_[:,idx,-1], 
+            np.copy(FData.config_['box_size']))
+
+    if nematic_basis:
+        # Find nematic basis vectors
+        nbasis = calc_nematic_basis(FData.orientation_[:,idx,-1])
+
+        # Find new filament positions in this nematic basis
+        p0_rel = np.linalg.solve( nbasis, p0_rel)
+        p1_rel = np.linalg.solve( nbasis, p1_rel)
+
+    Plot3DBundle_ColorByVec(p0_rel, p1_rel, FData.config_['box_size'],
+        color_vec=twist, color_range=[-0.3,0.3],
+        color_label=r'Twist $\chi$',
+        savepath=savepath)
+# }}}
+
+# Plot3DBundle_ColorByVec {{{
+def Plot3DBundle_ColorByVec(p0, p1, box_size,
+        basis=None,color_vec=None, color_range=None,color_label='Color',
+        savepath=None):
+
+    # Get filament com positions 
+    pos = (p0 + p1 )/2
+    
+    # Find condensate center of mass
+    com = calc_com_pbc( pos.T, box_size)
+    
+    if color_vec is not None:
+        if color_range is None:
+            color_range=[np.min(color_vec), np.max(color_vec)]
+        col0 = color_vec 
+        norm0 = mpl.colors.Normalize(vmin=color_range[0], vmax=color_range[1])
+        cmap0 = mpl.cm.ScalarMappable(norm=norm0, cmap=mpl.cm.jet)
+        cmap0.set_array([])
+        col=cmap0.to_rgba(col0).T
+    else:
+        col = np.zeros((4,p0.shape[-1]))
+        col[0,:] = 1
+        col[-1,:] = 1
+
+    if savepath is not None:
+
+        # Plot filaments in X' Y' frame
+        fig,(ax0,ax1,ax2) = plt.subplots(1,3,figsize=(12,3))
+        
+        for jfil in np.arange(p0.shape[-1]):
+            ax0.plot(
+                    [p0[0,jfil],p1[0,jfil]],
+                    [p0[1,jfil],p1[1,jfil]],
+                    c=col[:,jfil], alpha=0.5)
+            ax1.plot(
+                    [p0[0,jfil],p1[0,jfil]],
+                    [p0[2,jfil],p1[2,jfil]],
+                    c=col[:,jfil], alpha=0.5)
+            ax2.plot(
+                    [p0[1,jfil],p1[1,jfil]],
+                    [p0[2,jfil],p1[2,jfil]],
+                    c=col[:,jfil], alpha=0.5)
+        if color_vec is not None:
+            fig.colorbar(cmap0, label=color_label, ax=ax2)
+        ax0.set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$')
+        ax1.set(xlabel=r'$X (\mu m)$', ylabel=r'$Z (\mu m)$')
+        ax2.set(xlabel=r'$Y (\mu m)$', ylabel=r'$Z (\mu m)$')
+        plt.tight_layout()
+        plt.savefig(savepath, bbox_inches="tight")
+        plt.close()
+# }}}
+
+# condensed_aspect_ratio {{{
+def condensed_aspect_ratio(pos, orientation, labels, box_size, savepath=None, save=False, datapath=None):
+    """
+    To do this:
+    1) Find condensed c.o.m, and relative filament positions
+    2) Find gyration tensor
+    3) Find basis vectors
+    4) Transform filament positions to new basis
+    5) Find extents in each dimension
+    """
+
+    sigma = np.zeros((3,pos.shape[2]))
+
+    # frames
+    frames = np.arange(pos.shape[2])
+
+    for jf in frames:
+        cpos = pos[:,labels[:,jf]==0, jf]
+
+        # find center of mass
+        com = calc_com_pbc(cpos.T, box_size)
+
+        # find periodic distance to com for each point
+        xyz = np.zeros_like(cpos)
+        for jd in range(cpos.shape[0]):
+            cc = cpos[jd,:]-com[jd]
+            Lc = box_size[jd]
+            cc[ cc >= Lc/2] -= Lc
+            cc[ cc < -Lc/2] += Lc
+            xyz[jd,:] = cc
+
+        # sum over outer products
+        outs = np.zeros((3,3))
+        for jc in range(cpos.shape[1]):
+            outs+=np.outer(xyz[:,jc], xyz[:,jc])
+        outs = outs/cpos.shape[1]
+
+        # diagonalize
+        vals, vecs = np.linalg.eig(outs)
+
+        # sort vals (ascending order)
+        inds = vals.argsort()
+        vals = vals[inds]
+        vecs = vecs[:,inds]
+        
+        basis = vecs[:,::-1]
+
+        # Find new filament positions in this basis
+        pos_rot = np.linalg.solve( basis, cpos)
+        
+        for jdim in range(3):
+            sigma[jdim,jf] = np.max(pos_rot[jdim,:]) - np.min(pos_rot[jdim,:])
+
+    if save:
+        colors = sns.color_palette("husl", 3)
+        fig,(ax0,ax1) = plt.subplots(1,2,figsize=(8,3))
+        labs = [r'$\sigma_0$',r'$\sigma_1$',r'$\sigma_2$']
+        for jd in range(3):
+            ax0.plot( sigma[jd,:], label=labs[jd], linewidth=2,color=colors[jd])
+        ax0.legend(frameon=False)
+        ax0.set(xlabel=r'$\sigma (\mu m$)',ylabel='Frame')
+        
+    ratio = sigma[0,:]/(0.5*(sigma[1,:]+sigma[2,:]))
+    ax1.plot(ratio, color='k', lw=2)
+    ax1.set(xlabel='Frame')
+    ax1.set(ylabel=r'Aspect ratio $2\sigma_0 / (\sigma_1 + \sigma_2)$')
+    ax1.set_ylim(bottom=0.0, top=5.02)
+    ax1.axhline(ratio[-1],color='k', linestyle='dotted')
+    plt.tight_layout()
+    plt.savefig(savepath)
+    plt.close()
+    
+    # if datapath is not None:
+        # # save ratio to h5py
+        # if 'filament/cluster_extent_xyz' in datapath:
+            # del datapath['filament/cluster_extent_xyz']
+        # datapath.create_dataset('filament/cluster_extent_xyz', data=sigma, dtype='f')
+# }}}

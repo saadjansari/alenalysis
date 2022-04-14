@@ -361,15 +361,77 @@ class CrosslinkerSeries(DataSeries):
     # Plot trajectories }}}
 # }}}
 
+# AddCorrelationsToDataSeries {{{
 def AddCorrelationsToDataSeries(DSeries, simpath):
     
     # Contact Number
     with open(simpath / 'contact_number.npy', 'rb') as f:
-        DSeries.contact_number = np.load(f)
-        
+        contact_number = np.load(f)
+
     # Local Order
     with open(simpath / 'local_order.npy', 'rb') as f:
-        DSeries.local_polar_order = np.load(f)
-        DSeries.local_nematic_order = np.load(f)
+        local_polar_order = np.load(f)
+        local_nematic_order = np.load(f)
 
+    # Initialize to nans
+    cn = np.zeros( (contact_number.shape[0], DSeries.nframe_) )
+    lpo = np.zeros( (local_polar_order.shape[0], DSeries.nframe_) )
+    lno = np.zeros( (local_nematic_order.shape[0], DSeries.nframe_) )
+    cn[:] = np.NaN
+    lpo[:] = np.NaN
+    lno[:] = np.NaN
+
+    if contact_number.shape[1] == DSeries.nframe_:
+        print('Number of processed correlation data matches number of vtk files')
+        cn = contact_number
+        lpo = local_polar_order
+        lno = local_nematic_order
+    elif contact_number.shape[1] > DSeries.nframe_:
+        print('Number of processed correlation data is greater than number of vtk files')
+        cn = contact_number[:,:DSeries.nframe_]
+        lpo = local_polar_order[:,:DSeries.nframe_]
+        lno = local_nematic_order[:,:DSeries.nframe_]
+    elif contact_number.shape[1] < DSeries.nframe_:
+        print('Number of processed correlation data is less than number of vtk files. Computing unprocessed frames')
+        cn[:,:contact_number.shape[1]] = contact_number
+        lpo[:,:local_polar_order.shape[1]] = local_polar_order 
+        lno[:,:local_nematic_order.shape[1]] = local_nematic_order 
+
+        # Compute for unprocessed frames
+        for jframe in np.arange(contact_number.shape[1],DSeries.nframe_):
+
+            print('Frame = {0}/{1}'.format(jframe+1, DSeries.nframe_) )
+
+            # Min Dist
+            MD = minDistBetweenAllFilaments( 
+                    DSeries.pos_minus_[:,:,jframe], 
+                    DSeries.pos_plus_[:,:,jframe], 
+                    DSeries.pos_minus_[:,:,jframe], 
+                    DSeries.pos_plus_[:,:,jframe], 
+                    DSeries.config_['box_size']) / DSeries.config_['diameter_fil']
+
+            # Contact Number 
+            cn[:,jframe] = np.sum( np.exp(-1*(MD**2)), axis=1)
+
+            # Local Order
+            lpo[:,jframe], lno[:,jframe] = calc_local_order_frame( 
+                    DSeries.orientation_[:,:,jframe], 
+                    MD)
+
+        # Save
+        with open(simpath / 'contact_number.npy', 'wb') as f:
+            np.save(f, cn)
+
+        # Local Order
+        with open(simpath / 'local_order.npy', 'wb') as f:
+            np.save(f, lpo)
+            np.save(f, lno)
+
+    if np.any(np.isnan(cn.flatten())):
+        print('Some vals are still nans')
+
+    DSeries.contact_number = cn
+    DSeries.local_polar_order = lpo
+    DSeries.local_nematic_order = lno
     return DSeries
+# }}}

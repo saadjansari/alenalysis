@@ -32,6 +32,23 @@ def read_sim(spath, conf='U'):
         
         if syl_filenums[-1] == FData.nframe_-1:
             print('There are no additional files to load!')
+            return FData,XData
+        elif syl_filenums[-1] < FData.nframe_-1:
+            print('There are no additional files to load!')
+            print('Removing extraneous data!')
+            FData.gid_ = FData.gid_[:,:syl_filenums[-1]]
+            FData.orientation_ = FData.orientation_[:,:,:syl_filenums[-1]]
+            FData.pos_minus_ = FData.pos_minus_[:,:,:syl_filenums[-1]]
+            FData.pos_plus_ = FData.pos_plus_[:,:,:syl_filenums[-1]]
+            FData.nframe_ = FData.pos_minus_.shape[2]
+
+            XData.gid_ = XData.gid_[:,:prot_filenums[-1]]
+            XData.link0_ = XData.link0_[:,:prot_filenums[-1]]
+            XData.link1_ = XData.link1_[:,:prot_filenums[-1]]
+            XData.pos_minus_ = XData.pos_minus_[:,:prot_filenums[-1]]
+            XData.pos_plus_ = XData.pos_plus_[:,:prot_filenums[-1]]
+            XData.nframe_ = XData.pos_minus_.shape[2]
+            return FData,XData
         else:
             extra_syl_files = np.array(files_sylinder)[np.where(np.array(get_filenumbers(files_sylinder)) > FData.nframe_-1)[0]].tolist() 
             extra_prot_files = np.array(files_protein)[np.where(np.array(get_filenumbers(files_protein)) > FData.nframe_-1)[0]].tolist() 
@@ -52,7 +69,6 @@ def read_sim(spath, conf='U'):
             XData.pos_minus_ = np.concatenate( (XData.pos_minus_, pos0), axis=-1)
             XData.pos_plus_ = np.concatenate( (XData.pos_plus_, pos1), axis=-1)
             XData.nframe_ = XData.pos_minus_.shape[2]
-   
     else:
         # Read all files, and Instantiate handler objects
         print('Reading {0} frames...'.format(len(files_sylinder)))
@@ -67,17 +83,10 @@ def read_sim(spath, conf='U'):
         # XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, box_size, time_snap, kT, kappa, rest_length)
         XData = CrosslinkerSeries(gid, pos0, pos1, link0, link1, config)
 
-    # with open(fastpath_f, "wb") as fp:
-        # pickle.dump(FData, fp)
-    # with open(fastpath_x, "wb") as fp:
-        # pickle.dump(XData, fp)
-
-
-    # Constraints
-    # stress_uni, stress_bi = read_all_constraint(files_constraint)
-    # pdb.set_trace()
-    # FData = 1
-    # XData = 1
+    with open(fastpath_f, "wb") as fp:
+        pickle.dump(FData, fp)
+    with open(fastpath_x, "wb") as fp:
+        pickle.dump(XData, fp)
 
     return FData, XData
 

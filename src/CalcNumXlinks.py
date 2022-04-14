@@ -28,6 +28,7 @@ def PlotStateCounts( FData, XData, savepath):
 
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
+    plt.close()
     
 
 def PlotXlinkPerFilamentVsTime( FData, XData, savepath):
