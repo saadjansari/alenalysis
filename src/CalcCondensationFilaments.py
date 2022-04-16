@@ -53,6 +53,7 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     labels, ratio = condensed_networkx(XData, FData, params, save=True, 
             savepath=params['plot_path'] / 'condensed_filament_positions.pdf',
             datapath=params['data_filestream'], write2vtk=write2vtk, simpath=params['sim_path'])
+    condensed_crosslinker_number(XData, labels, params, datapath=params['data_filestream'])
 
     if plot_aspect_ratio:
         condensed_aspect_ratio(FData.get_com(), FData.orientation_,labels, 
@@ -454,7 +455,10 @@ def condensed_networkx(XData, FData, params, savepath=None, save=False, datapath
         # save ratio to h5py
         if 'filament/condensed_ratio' in datapath:
             del datapath['filament/condensed_ratio']
+        if 'filament/condensed/number' in datapath:
+            del datapath['filament/condensed/number']
         datapath.create_dataset('filament/condensed_ratio', data=ratio, dtype='f')
+        datapath.create_dataset('filament/condensed/number', data=ratio*labels.shape[0], dtype='f')
         
     if write2vtk:
         add_array_to_vtk(labels, 'Condensed', simpath)
@@ -1313,10 +1317,12 @@ def CalcBundleTwist( FData, labels, N=25, savepath=None, datapath=None):
         
     if datapath is not None:
         # save to h5py
-        if 'filament/condensed_twist' in datapath:
-            del datapath['filament/condensed_twist']
-        datapath.create_dataset('filament/condensed_twist', data=twist.flatten(), dtype='f')
-        # datapath.create_dataset('filament/', data=n_clusters, dtype='f')
+        if 'filament/condensed/twist' in datapath:
+            del datapath['filament/condensed/twist']
+        if 'filament/condensed/rdist_from_center' in datapath:
+            del datapath['filament/condensed/rdist_from_center']
+        datapath.create_dataset('filament/condensed/twist', data=twist.flatten(), dtype='f')
+        datapath.create_dataset('filament/condensed/rdist_from_center', data=rdist.flatten(), dtype='f')
 
     return twist,rdist
 # }}}
@@ -1553,4 +1559,40 @@ def condensed_aspect_ratio(pos, orientation, labels, box_size, savepath=None, sa
         # if 'filament/cluster_extent_xyz' in datapath:
             # del datapath['filament/cluster_extent_xyz']
         # datapath.create_dataset('filament/cluster_extent_xyz', data=sigma, dtype='f')
+# }}}
+
+# condensed_crosslinker_number {{{
+def condensed_crosslinker_number(XData, labels, params, datapath=None):
+
+    nframe = XData.nframe_
+    nx = XData.nxlink_
+    nx_condensed = np.zeros( nframe)
+        
+    # for each frame, find binding state of xlinks
+    # then find if the associated filaments are condensed or not
+    for jframe in np.arange(0,nframe):
+
+        # Xlink head 0, head 1 state 
+        head0 = XData.link0_[:,jframe]
+        head1 = XData.link1_[:,jframe]
+
+        # filter to get doubly bound states only
+        db_idx = np.logical_and(head0>-1,head1>-1)
+        head0 = head0[ db_idx].astype(int)
+        head1 = head1[ db_idx].astype(int)
+
+        nx_condensed[jframe] = np.sum( labels[head0,jframe] + labels[head1,jframe] == 0)
+        print('############ Finding Condensed Crosslinker Number= {0}/{1} ({2:.0f}%) ############'.format(
+            1+jframe,
+            nframe, 
+            100*(1+jframe)/nframe), end='\r',flush=True)
+    print('############ Finding Condensed Crosslinker Number= {0}/{0} (100%) ############'.format(nframe))
+    
+    if datapath is not None:
+        # save ratio to h5py
+        if 'xlinker/condensed/number' in datapath:
+            del datapath['xlinker/condensed/number']
+        datapath.create_dataset('xlinker/condensed/number', data=nx_condensed, dtype='f')
+
+    return nx_condensed 
 # }}}

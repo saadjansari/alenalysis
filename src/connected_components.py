@@ -58,7 +58,7 @@ def get_largest_cc( nodes, edge0, edge1):
     return cc, cc_bool
 
 @njit
-def get_edges_in_largest_cc( cc, edge0, edge1):
+def get_edges_in_cc( cc, edge0, edge1):
 
     # initialize
     idx_edges = []
@@ -66,8 +66,8 @@ def get_edges_in_largest_cc( cc, edge0, edge1):
 
     # num xlinks in biggest cluster
     for idx in np.arange(len(edge0)):
-        if edge0[idx] != -1 or edge1[idx] != -1:
-            idx_edges.append( idx_edges)
+        if edge0[idx] in cc and edge1[idx] in cc:
+            idx_edges.append( idx)
             n_edges+=1
 
-    return idx_edges, n_edges 
+    return idx_edges, n_edges
