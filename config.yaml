@@ -6,9 +6,9 @@ CorrelationMode: False
 
 # General 
 PlotTrajectories: False
-PlotCrosslinkerStats: True
+PlotCrosslinkerStats: False
 PlotCrosslinkerLength: False
-PlotGlobalOrderParameters: True
+PlotGlobalOrderParameters: False
 PlotExtensileMotors: False
 PlotEffectiveDiameter: False 
 PlotCorrelations: False # Correlations data must be saved

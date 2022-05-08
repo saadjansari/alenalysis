@@ -32,15 +32,15 @@ from src.connected_components import get_nodes_in_clusters
 def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     """ Plot the filament condensation """
 
-    plot_ratio_condensed_filaments=True
-    plot_diffusion=True
+    plot_ratio_condensed_filaments = False
+    plot_diffusion = True
     plot_packing_fraction=False
     plot_local_order=False
     plot_time_averaged_label=False
-    plot_trajectories=True
+    plot_trajectories = False
     plot_residence_times = False
-    plot_bundle_twist = True
-    plot_aspect_ratio= True
+    plot_bundle_twist = False
+    plot_aspect_ratio= False
     
     print('Filaments condensation...') 
     # FData = AddCorrelationsToDataSeries(FData, params['sim_path'])
@@ -53,6 +53,18 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     labels, ratio = condensed_networkx(XData, FData, params, save=True, 
             savepath=params['plot_path'] / 'condensed_filament_positions.pdf',
             datapath=params['data_filestream'], write2vtk=write2vtk, simpath=params['sim_path'])
+
+    # Condensed MSD
+    if plot_diffusion:
+        pos_unfolded = FData.unfold_trajectories('com')
+        condensed_msd_diffusion(pos_unfolded, labels, save=True, dt=0.05,N=200,
+                savepath=params['plot_path'] / 'condensed_filament_msd.pdf',
+                datapath=params['data_filestream'])
+        condensed_msd_components(FData.get_com(), FData.orientation_, labels,
+                FData.config_['box_size'], N=1000,
+                save=True, savepath=params['plot_path'] / 'condensed_msd_components.pdf',
+                datapath=None, timestep=0.05)
+
     condensed_crosslinker_number(XData, labels, params, datapath=params['data_filestream'])
 
     if plot_aspect_ratio:
@@ -85,7 +97,7 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     # Condensed MSD
     if plot_diffusion:
         pos_unfolded = FData.unfold_trajectories('com')
-        condensed_msd_diffusion(pos_unfolded, labels, save=True, dt=0.05,
+        condensed_msd_diffusion(pos_unfolded, labels, save=True, dt=0.05,N=200,
                 savepath=params['plot_path'] / 'condensed_filament_msd.pdf',
                 datapath=params['data_filestream'])
 
@@ -112,7 +124,7 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
                 datapath=params['data_filestream'])
 
     if plot_residence_times:
-        PlotResidenceTimes(labels, N=800, dt=0.05,
+        PlotResidenceTimes(labels, N=1200, dt=0.05,
                 savepath=params['plot_path'] / 'condensed_residence_times.pdf',
                 datapath=params['data_filestream'])
         
@@ -457,6 +469,7 @@ def condensed_networkx(XData, FData, params, savepath=None, save=False, datapath
             del datapath['filament/condensed_ratio']
         if 'filament/condensed/number' in datapath:
             del datapath['filament/condensed/number']
+        # pdb.set_trace()
         datapath.create_dataset('filament/condensed_ratio', data=ratio, dtype='f')
         datapath.create_dataset('filament/condensed/number', data=ratio*labels.shape[0], dtype='f')
         
@@ -1126,10 +1139,11 @@ def PlotCondensedTrajectories(FData, labels, N=20, savepath=None):
     pos = FData.unfold_trajectories('plus')[:,idx,-1*N:]
 
     fig,ax = plt.subplots()
-    for jidx in np.random.choice(pos.shape[1], N):
-        ax.plot(pos[0,jidx,:]-pos[0,jidx,0], 
-                pos[1,jidx,:]-pos[1,jidx,0], 
-                alpha=0.4)
+    if pos.shape[1] > 5:
+        for jidx in np.random.choice(pos.shape[1], 10):
+            ax.plot(pos[0,jidx,:]-pos[0,jidx,0], 
+                    pos[1,jidx,:]-pos[1,jidx,0], 
+                    alpha=0.4)
 
     ax.set(xlabel='X', ylabel='Y')
     # ax.set_xlim(left=0, right=FData.config_['box_size'][0])
@@ -1279,7 +1293,8 @@ def PlotResidenceTimes(labels, N=400, dt=0.05, savepath=None, datapath=None):
         sns.histplot(residence_times, kde=True,
              bins=bins, color = 'darkblue',
              edgecolor='black',
-             line_kws={'linewidth': 4}, ax=ax)
+             line_kws={'linewidth': 2},
+             kde_kws={'bw_adjust': 0.25}, ax=ax)
         ax.set(xlabel='Residence time (s)',ylabel='Probability density')
         ax.set_xlim(left=0)
         ax.legend(frameon=False)
@@ -1501,64 +1516,216 @@ def condensed_aspect_ratio(pos, orientation, labels, box_size, savepath=None, sa
     for jf in frames:
         cpos = pos[:,labels[:,jf]==0, jf]
 
-        # find center of mass
-        com = calc_com_pbc(cpos.T, box_size)
+        if cpos.shape[1] > 0:
+            # find center of mass
+            com = calc_com_pbc(cpos.T, box_size)
 
-        # find periodic distance to com for each point
-        xyz = np.zeros_like(cpos)
-        for jd in range(cpos.shape[0]):
-            cc = cpos[jd,:]-com[jd]
-            Lc = box_size[jd]
-            cc[ cc >= Lc/2] -= Lc
-            cc[ cc < -Lc/2] += Lc
-            xyz[jd,:] = cc
+            # find periodic distance to com for each point
+            xyz = np.zeros_like(cpos)
+            for jd in range(cpos.shape[0]):
+                cc = cpos[jd,:]-com[jd]
+                Lc = box_size[jd]
+                cc[ cc >= Lc/2] -= Lc
+                cc[ cc < -Lc/2] += Lc
+                xyz[jd,:] = cc
 
-        # sum over outer products
-        outs = np.zeros((3,3))
-        for jc in range(cpos.shape[1]):
-            outs+=np.outer(xyz[:,jc], xyz[:,jc])
-        outs = outs/cpos.shape[1]
+            # if jf == frames[-1]:
+                # pdb.set_trace()
 
-        # diagonalize
-        vals, vecs = np.linalg.eig(outs)
+            # sum over outer products
+            outs = np.zeros((3,3))
+            for jc in range(cpos.shape[1]):
+                outs+=np.outer(xyz[:,jc], xyz[:,jc])
+            outs = outs/cpos.shape[1]
 
-        # sort vals (ascending order)
-        inds = vals.argsort()
-        vals = vals[inds]
-        vecs = vecs[:,inds]
-        
-        basis = vecs[:,::-1]
+            # diagonalize
+            vals, vecs = np.linalg.eig(outs)
 
-        # Find new filament positions in this basis
-        pos_rot = np.linalg.solve( basis, cpos)
-        
-        for jdim in range(3):
-            sigma[jdim,jf] = np.max(pos_rot[jdim,:]) - np.min(pos_rot[jdim,:])
+            # sort vals (ascending order)
+            inds = vals.argsort()
+            vals = vals[inds]
+            vecs = vecs[:,inds]
+            
+            basis = vecs[:,::-1]
+
+            # Find new relative filament positions in this basis
+            xyz_rot = np.linalg.solve( basis, xyz)
+
+            # # find new center of mass
+            # com = calc_com_pbc(pos_rot.T, box_size)
+
+            # # find periodic distance to com for each point
+            # xyz = np.zeros_like(pos_rot)
+            # for jd in range(cpos.shape[0]):
+                # cc = pos_rot[jd,:]-com[jd]
+                # Lc = box_size[jd]
+                # cc[ cc >= Lc/2] -= Lc
+                # cc[ cc < -Lc/2] += Lc
+                # xyz[jd,:] = cc
+
+            # if jf == frames[-1]:
+                # pdb.set_trace()
+            
+            for jdim in range(3):
+                # sigma[jdim,jf] = np.max(pos_rot[jdim,:]) - np.min(pos_rot[jdim,:])
+                sigma[jdim,jf] = np.max(xyz_rot[jdim,:]) - np.min(xyz_rot[jdim,:])
+
+    print('Sigma 0 = {0} +- {1}'.format( np.mean(sigma[0,-100:]), np.std( sigma[0,-100:])) )
+    print('Sigma 1 = {0} +- {1}'.format( np.mean(sigma[1,-100:]), np.std( sigma[1,-100:])) )
+    print('Sigma 2 = {0} +- {1}'.format( np.mean(sigma[2,-100:]), np.std( sigma[2,-100:])) )
 
     if save:
         colors = sns.color_palette("husl", 3)
-        fig,(ax0,ax1) = plt.subplots(1,2,figsize=(8,3))
+        # fig,(ax0,ax1) = plt.subplots(1,2,figsize=(8,3))
+        fig,((ax0,ax1),(ax2,ax3)) = plt.subplots(2,2,figsize=(8,6))
         labs = [r'$\sigma_0$',r'$\sigma_1$',r'$\sigma_2$']
         for jd in range(3):
-            ax0.plot( sigma[jd,:], label=labs[jd], linewidth=2,color=colors[jd])
+            ax0.plot( sigma[jd,:], label=labs[jd], linewidth=2,
+                    color=colors[jd], alpha=0.5)
         ax0.legend(frameon=False)
-        ax0.set(xlabel=r'$\sigma (\mu m$)',ylabel='Frame')
+        ax0.set(ylabel=r'$\sigma (\mu m$)',xlabel='Frame')
         
-    ratio = sigma[0,:]/(0.5*(sigma[1,:]+sigma[2,:]))
-    ax1.plot(ratio, color='k', lw=2)
-    ax1.set(xlabel='Frame')
-    ax1.set(ylabel=r'Aspect ratio $2\sigma_0 / (\sigma_1 + \sigma_2)$')
-    ax1.set_ylim(bottom=0.0, top=5.02)
-    ax1.axhline(ratio[-1],color='k', linestyle='dotted')
-    plt.tight_layout()
-    plt.savefig(savepath)
-    plt.close()
+        ratio = sigma[0,:]/sigma[1,:]
+        ax1.plot(ratio, color='k', lw=2)
+        ax1.set(xlabel='Frame')
+        ax1.set(ylabel=r'Aspect ratio $\sigma_0 / \sigma_1$')
+        ax1.set_ylim(bottom=0.0, top=5.02)
+        ax1.axhline(ratio[-1],color='k', linestyle='dotted')
+
+        ratio = sigma[0,:]/sigma[2,:]
+        ax2.plot(ratio, color='k', lw=2)
+        ax2.set(xlabel='Frame')
+        ax2.set(ylabel=r'Aspect ratio $\sigma_0 / \sigma_2$')
+        ax2.set_ylim(bottom=0.0, top=5.02)
+        ax2.axhline(ratio[-1],color='k', linestyle='dotted')
+
+        ratio = sigma[0,:]/(0.5*(sigma[1,:]+sigma[2,:]))
+        ax3.plot(ratio, color='k', lw=2)
+        ax3.set(xlabel='Frame')
+        ax3.set(ylabel=r'Aspect ratio $2\sigma_0 / (\sigma_1 + \sigma_2)$')
+        ax3.set_ylim(bottom=0.0, top=5.02)
+        ax3.axhline(ratio[-1],color='k', linestyle='dotted')
+        plt.tight_layout()
+        plt.savefig(savepath)
+        plt.close()
     
     # if datapath is not None:
         # # save ratio to h5py
         # if 'filament/cluster_extent_xyz' in datapath:
             # del datapath['filament/cluster_extent_xyz']
         # datapath.create_dataset('filament/cluster_extent_xyz', data=sigma, dtype='f')
+# }}}
+
+# condensed_msd_components {{{
+def condensed_msd_components(pos, orientation, labels, box_size, savepath=None, save=False, datapath=None, timestep=0.05, N=200):
+    """
+    To do this:
+    1) Find condensed c.o.m, and relative filament positions
+    2) Find gyration tensor
+    3) Find basis vectors
+    4) Transform filament positions to new basis for each time frame
+    5) Find msd in each direction
+    """
+
+    # Find filaments that are always condensed
+    label_condensed = np.sum( labels[:,-1*N:],axis=-1) == 0
+
+    if np.sum(label_condensed) == 0:
+        print('There are no consistently condensed filaments')
+        return
+    else:
+        print('There are {0} consistently condensed filaments'.format(np.sum(label_condensed)))
+
+    pos = pos[:,label_condensed,-1*N:]
+    pos_relative = np.zeros_like(pos)
+
+    # frames
+    frames = np.arange(pos.shape[2])
+
+    coms = np.zeros((3,pos.shape[2]))
+
+    # cache old basis 
+    basis_old = None
+    for jf in frames:
+        cpos = pos[:,:,jf]
+
+        if cpos.shape[1] > 0:
+            # find center of mass
+            com = calc_com_pbc(cpos.T, box_size)
+            coms[:,jf] = com
+
+            # find periodic distance to com for each point
+            xyz = np.zeros_like(cpos)
+            for jd in range(cpos.shape[0]):
+                cc = cpos[jd,:]-com[jd]
+                Lc = box_size[jd]
+                cc[ cc >= Lc/2] -= Lc
+                cc[ cc < -Lc/2] += Lc
+                xyz[jd,:] = cc
+
+            # sum over outer products
+            outs = np.zeros((3,3))
+            for jc in range(cpos.shape[1]):
+                outs+=np.outer(xyz[:,jc], xyz[:,jc])
+            outs = outs/cpos.shape[1]
+
+            # diagonalize
+            vals, vecs = np.linalg.eig(outs)
+
+            # sort vals (ascending order)
+            inds = vals.argsort()
+            vals = vals[inds]
+            vecs = vecs[:,inds]
+            basis = vecs[:,::-1]
+            if basis_old is not None:
+                # Flip eigenvectors if needed based on old basis
+                if np.dot(basis_old[:,0], basis[:,0]) < 0:
+                    basis *= -1
+                # Switch e1 and e2 to ensure smoothness
+                if np.dot(basis_old[:,1], basis[:,1]) < np.dot(basis_old[:,2], basis[:,2]):
+                    temp_vec = np.copy(basis[:,1])
+                    basis[:,1] = basis[:,2]
+                    basis[:,2] = temp_vec
+            basis_old = basis
+
+            # Find new relative filament positions in this basis
+            xyz_rot = np.linalg.solve( basis, xyz)
+            
+            pos_relative[:,:,jf] = xyz_rot
+            
+    # Calculate component-specific msd
+    msd = np.zeros((3, pos_relative.shape[1], pos_relative.shape[2]))
+    for jd in range(3):
+        msd[jd,:,:] = calc_msd_fft(np.expand_dims( pos_relative[jd,:,:], 0))
+
+    MSD_mu = np.mean(msd,axis=1).squeeze()
+    MSD_std = np.std(msd,axis=1).squeeze()
+    MSD_sem = MSD_std/np.sqrt(msd.shape[1])
+
+    # Display
+    timeArray = timestep * np.arange(0, pos.shape[-1])
+
+    if save:
+        labs = [r'$\hat{e}_0$',r'$\hat{e}_1$',r'$\hat{e}_2$']
+        colors = sns.color_palette("husl", 3)
+        fig,axs = plt.subplots(3,1,figsize=(8,8), sharex=True)
+
+        for jd in range(3):
+            axs[jd].plot(timeArray, MSD_mu[jd,:], label=labs[jd], 
+                    linewidth=2, color=colors[jd], alpha=0.5)
+            axs[jd].fill_between(timeArray,
+                    MSD_mu[jd,:] - MSD_std[jd,:],
+                    MSD_mu[jd,:] + MSD_std[jd,:],
+                    color=colors[jd], alpha=0.2)
+            axs[jd].set_xlim(left=0)
+            axs[jd].set_ylim(bottom=0)
+            axs[jd].legend(frameon=False)
+            axs[jd].set(ylabel=r'MSD / $\mu m^2$')
+        
+        axs[-1].set(xlabel='Lag time / s')
+        plt.tight_layout()
+        plt.savefig(savepath)
+        plt.close()
 # }}}
 
 # condensed_crosslinker_number {{{
@@ -1588,6 +1755,7 @@ def condensed_crosslinker_number(XData, labels, params, datapath=None):
             100*(1+jframe)/nframe), end='\r',flush=True)
     print('############ Finding Condensed Crosslinker Number= {0}/{0} (100%) ############'.format(nframe))
     
+    # pdb.set_trace()
     if datapath is not None:
         # save ratio to h5py
         if 'xlinker/condensed/number' in datapath:

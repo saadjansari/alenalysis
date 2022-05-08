@@ -18,7 +18,7 @@ from src.CalcDensityMaps import PlotFilamentDensityMovie, PlotFilamentDensityLas
 from src.CalcLocalMaps import PlotPackingFraction, PlotSOrder, PlotPOrder, PlotOrientation, PlotNematicDirector, PlotNumberDensity, PlotNumberDensityXlink
 from src.CalcCondensationFilaments import PlotFilamentCondensation, PlotFilamentClusters
 from src.CalcCondensationXlinks import PlotXlinkClusters
-from src.CalcMobility import PlotMobilityFilamentVsTime
+from src.CalcMobility import PlotMobilityFilamentVsTime, PlotMobilityCrosslinkerHist
 from src.CalcOrderParametersLocal import *
 from src.unpickler import renamed_load
 from src.CalcPackingFraction import PlotLocalPackingFractionHistogram, PlotLocalPackingFractionVsTime
@@ -28,6 +28,7 @@ from src.CalcRDF import PlotRDF, PlotRDF_PAP
 from src.Write3DOrientation2vtk import Write3DOrientation2vtk
 from src.CalcCrosslinkerPositionOnFilament import PlotCrosslinkerPositionOnFilament, PlotCrosslinkerLength
 from src.CalcExtensileMotors import PlotExtensileFilamentPairs
+from src.CalcCrosslinkerDwellTime import PlotCrosslinkerDwellTime
 
 def main( params):
 
@@ -116,8 +117,11 @@ def main( params):
 
     # Dynamics {{{
     if cfg['PlotDynamics']:
-        PlotMSD(FData, params, savepath / 'graph_msd.pdf',N=200)
-        PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
+        # PlotMSD(FData, params, savepath / 'graph_msd.pdf',N=200)
+        # PlotMobilityFilamentVsTime(FData, savepath / 'mobility.pdf')
+        # PlotMobilityCrosslinkerVsTime(XData, savepath / 'mobility_xlinker.pdf')
+        PlotMobilityCrosslinkerHist(XData, savepath / 'mobility_xlinker.pdf')
+        # PlotCrosslinkerDwellTime(XData, savepath / 'dwell_time_xlinker.pdf')
     # }}}
 
     # RDF {{{
@@ -146,7 +150,7 @@ def main( params):
 
     # Filament Condensation / Clustering
     if cfg['ComputeFilamentClusters']:
-        PlotFilamentClusters(FData, params, N=200)
+        PlotFilamentClusters(FData, params, N=1000)
         
     # Crosslinker Clusters
     if cfg['ComputeCrosslinkerClusters']:
