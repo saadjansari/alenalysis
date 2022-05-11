@@ -11,7 +11,7 @@ ___
 ## Requirements:
 
 1. Simulation data from aLENS.
-2. Python
+2. Anaconda
 
 ## Installation:
 You can download alenalysis using git.
@@ -21,6 +21,12 @@ git clone https://github.com/saadjansari/alenalysis.git
 ```
 
 ## Initialization:
+
+Begin by creating, and activating the conda environment:
+```
+conda env create -f environment.yml
+conda activate pynalysis
+```
 
 There are 2 essential files that need to be configured for running alenalysis.
 Start by duplicating the sample files:
