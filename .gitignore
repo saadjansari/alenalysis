@@ -3,3 +3,5 @@ __pycache__
 archive
 tests
 .DS_Store
+sims_list.yaml
+config.yaml

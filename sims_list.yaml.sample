@@ -1,0 +1,20 @@
+## SIMS_LIST.YAML
+
+# Parent path of simulations
+path: '/Users/saadjansari/Documents/Projects/Results/Tactoids/VolumeExclusion/N2400'
+
+# Use custom sims
+custom_sims: True
+
+# If not using custom sims, use a generator for parameter scans
+Confinement: ['P1'] # Confinement geometry
+PackingFraction: [16] # Microtubule packing fraction
+NumXlinks: [2,4] # Ratio of crosslinkers to filaments
+k_val: [1] # Equilibrium constant
+walk_pause: ['w1_p0'] # Walking and end-pausing enable/disable
+
+# If using custom sims, define the sims to sequentially analyze
+sims:
+    - 's0.015'
+    - 's0.0175'
+    - 's0.02'
