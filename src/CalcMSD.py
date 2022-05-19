@@ -1,8 +1,5 @@
 import numpy as np
-import random
 from matplotlib import pyplot as plt
-# import tidynamics
-import pdb
 
 # Plotting
 def PlotMSD(FData, params, savepath, N=300):

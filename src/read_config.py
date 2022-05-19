@@ -1,6 +1,5 @@
 import numpy as np
 import yaml
-import pdb
 
 def get_config(spath):
     # Read and store useful configuration values from RunConfig and ProteinConfig.yaml

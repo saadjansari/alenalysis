@@ -1,9 +1,6 @@
 import numpy as np
 from src.CalcOrderParameters import calc_nematic_tensor
-from scipy import linalg
 from src.calc_com_pbc import calc_com_pbc
-from src.calc_pdist_pbc import pdist_pbc, pdist_pbc_xyz_max
-import pdb
 
 def calc_bundle_twist(pos, orient, box_size):
     """

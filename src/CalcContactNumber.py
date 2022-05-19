@@ -1,12 +1,6 @@
-from numba import njit
 import numpy as np
-import scipy.spatial.ckdtree
-from scipy.spatial.distance import pdist, squareform
-import src.decorators
 from src.DataHandler import *
 from src.write2vtk import add_array_to_vtk
-from pathlib import Path
-import pdb
 
 # Plotting
 def PlotContactNumberVsTime( FData, savepath, N=400):

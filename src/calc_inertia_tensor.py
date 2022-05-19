@@ -1,5 +1,4 @@
 import numpy as np
-import pdb
 
 def calc_inertia_tensor3d_pbc(pos, box_size):
     """ calulate inertia tensor of pos (N x 3) with pbc """

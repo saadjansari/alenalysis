@@ -1,14 +1,8 @@
-from numba import njit
 import numpy as np
-import pdb
-import scipy.spatial.ckdtree
 from scipy.ndimage import convolve as conv
 from src.DataHandler import *
-from src.CalcContactNumber import calc_contact_number
 from src.write2vtk import add_array_to_vtk
 import src.decorators
-from pathlib import Path
-from matplotlib import colors
 
 def PlotLocalPolarOrderVsTime( FData, savepath):
     """ Plot local polar order for each filament vs time """

@@ -1,10 +1,6 @@
-from numba import njit
 import numpy as np
 from matplotlib import pyplot as plt
-import src.decorators
-import pdb
 from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
 from src.calc_com_pbc import calc_com_pbc
@@ -87,8 +83,8 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
         # pdb.set_trace()
         # plt.close()
         # print('whoops')
-        size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
-        n_noise_ = list(labels).count(-1)
+        # size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
+        # n_noise_ = list(labels).count(-1)
         # print("Estimated number of clusters: %d" % n_clusters_)
         # print("Estimated number of noise points: %d" % n_noise_)
 

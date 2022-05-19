@@ -1,8 +1,5 @@
 import numpy as np
-import numba as nb
-from random import sample
 import matplotlib.pyplot as plt
-import pdb
 import src.decorators
 
 def PlotXlinkOrientations(FData, XData, savepath, N=100):
@@ -37,14 +34,5 @@ def calc_crosslinker_orientations(fil_orient, XData):
         # Head 2, nothing special required.
         orts[np.where(xl_db)[0],jframe] = np.einsum('ij,ij->j', -1*xi[:,xl_db], fil_orient[:,XData.link0_[xl_db,jframe].astype(int),jframe])
         orts[XData.nxlink_+np.where(xl_db)[0],jframe] = np.einsum('ij,ij->j', xi[:,xl_db], fil_orient[:,XData.link1_[xl_db,jframe].astype(int),jframe])
-
-        # # For each crosslinker
-        # for jc in np.arange(XData.nxlink_):
-            # if XData.link0_[jc,jframe] != -1 and XData.link1_[jc,jframe] != -1:
-
-                # xi[:,jc] = xi[:,jc]/np.linalg.norm(xi[:,jc])
-                # # Dot products with relative filament
-                # orts[2*jc,jframe] = np.dot(xi[:,jc], fil_orient[:,int(XData.link0_[jc,jframe]),jframe] )
-                # orts[2*jc+1, jframe] = np.dot(xi[:,jc], fil_orient[:,int(XData.link1_[jc,jframe]),jframe] )
 
     return orts

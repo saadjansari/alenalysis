@@ -1,5 +1,4 @@
 import numpy as np
-import pdb
 from src.write2vtk import add_array_to_vtk
 
 def Write3DOrientation2vtk(FData, XData, params):

@@ -1,16 +1,10 @@
 import numpy as np
-import os
-import seaborn as sns
-import pdb
 import matplotlib.pyplot as plt
 from itertools import groupby
 
 # PlotCrosslinkerDwellTimes{{{
 def PlotCrosslinkerDwellTime( XData, savepath, N=500):
     """ Make a Histogram for all last N frames"""
-
-    # frames
-    frames = np.arange(XData.nframe_-N, XData.nframe_)
 
     # bound heads
     head0 = XData.link0_[:,-1*N:].astype(np.int)

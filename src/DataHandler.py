@@ -1,5 +1,4 @@
 import numpy as np
-import numba as nb
 from random import sample
 import matplotlib.pyplot as plt
 import pdb
@@ -7,7 +6,6 @@ from src.unfold_trajectories import *
 from src.CalcOrderParametersLocal import * 
 from src.CalcPackingFraction import * 
 from src.CalcOverlaps import minDistBetweenAllFilaments
-from src.CalcContactNumber import calc_contact_number
 
 # DataSeries {{{
 class DataSeries:
@@ -124,33 +122,6 @@ class FilamentSeries(DataSeries):
                     self.pos_minus_[:,:,cframe], 
                     self.pos_plus_[:,:,cframe]) / self.config_['diameter_fil']
         print('Frame = {0}/{0}'.format(self.nframe_))
-        self.min_dist_calculated = True
-    # }}}
-
-    # Min Dist {{{
-    def CalcMinDistParallel(self, N=100):
-        print('Computing minimum distances for last {0} frames'.format(N))
-        self.min_dist_ = np.zeros((self.nfil_, self.nfil_, N))
-
-        from multiprocessing import Pool, freeze_support, cpu_count
-        import os
-
-        # arguments
-        all_args = [(self.pos_minus_[:,:,i],self.pos_plus_[:,:,i]) for i in range(self.nframe_-N,self.nframe_)]
-        pool = Pool(cpu_count())
-
-        def wrapped_some_function_call(args):
-            """
-            we need to wrap the call to unpack the parameters
-            we build before as a tuple for being able to use pool.map
-            """
-            res = minDistBetweenAllFilaments(*args, *args)
-            return res
-
-        results = pool.map(wrapped_some_function_call, all_args)
-        pdb.set_trace()
-
-        # self.config_['diameter_fil']
         self.min_dist_calculated = True
     # }}}
     # }}} 

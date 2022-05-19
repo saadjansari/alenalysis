@@ -1,13 +1,9 @@
 import numpy as np
-import random, pdb, os
+import pdb 
 from matplotlib import pyplot as plt
 import scipy.spatial.ckdtree
 from scipy.interpolate import UnivariateSpline
-from scipy.spatial.distance import cdist, squareform
-import time
-from mpl_toolkits.mplot3d import Axes3D
-import shutil
-from pathlib import Path
+from scipy.spatial.distance import cdist
 import mpmath
 from numba import njit
 import src.decorators
@@ -35,11 +31,8 @@ def PlotPackingFraction(FData, savepath, N=20, **kwargs):
     for idx,jframe in enumerate(frames):
         rho[:,:,:,idx] = densityMap.ComputePF_v2(FData.pos_minus_[:,:,jframe], FData.pos_plus_[:,:,jframe])
     rho_mu = np.mean(rho, axis=-1)
-    rho_med = np.median(rho, axis=-1)
 
     # Plot
-    # densityMap.PlotTest(rho_mu, 'Packing Fraction', savepath, **kwargs)
-    # pdb.set_trace()
     densityMap.PlotTest(rho_mu, 'Packing Fraction', savepath, vmin=0.0, vmax=0.40, **kwargs)
 # }}} 
 
@@ -180,7 +173,7 @@ def PlotOrientation(FData, savepath, N=1, **kwargs):
     densityMap = LocalMap(FData.config_, rad_scaling=2.0)
 
     # orientation
-    ort = 0*densityMap.ComputeOrientation(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1], FData.orientation_[:,:,-1])
+    # ort = 0*densityMap.ComputeOrientation(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1], FData.orientation_[:,:,-1])
     ort = 0*densityMap.ComputeSdirector(FData.pos_minus_[:,:,-1], FData.pos_plus_[:,:,-1], FData.orientation_[:,:,-1])
     pdb.set_trace()
 
@@ -284,7 +277,6 @@ class LocalMap():
         xv,yv,zv = self.GetSamplePoints()
         pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
         pos = self.apply_PBC(pos)
-        pos_tup = tuple(pos.transpose())
 
         # Get Sample Positions and Volumes, idx_in_original
         pos_sample, vol_sample,_ = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -294,16 +286,10 @@ class LocalMap():
         vol_search = self.get_search_volume(pos,rad).reshape(xv.shape)
 
         # Initialize cKDtree
-        bs = self.get_special_boxsize()
         kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
        
         # INitiliaze packing fraction
         pf = np.zeros_like(xv)
-
-        # # Put pos_c inside periodic box
-        # neighbors_all = kdtree.query_ball_point( pos_tup, r=rad)
-
-        # 
 
         # Loop over sample points
         for jx in np.arange(xv.shape[0]):
@@ -319,10 +305,7 @@ class LocalMap():
                     
                     # find distance to neighbors
                     if len(neighbors)>0:
-                        dd0 = np.linalg.norm(pos_c.reshape(-1,1)-pos_sample[:,neighbors], axis=0)
                         dd1 = cdist_pbc(pos_c, pos_sample[:,neighbors].T, self.get_special_boxsize())
-                        # if np.max( np.abs(dd0-dd1)) > 0.0001:
-                            # pdb.set_trace()
                         vol_scaling = 1-np.clip( ((dd1+self.get_diameter_()/2)-rad )/self.get_diameter_(), 0, 1).reshape(-1)
                         # Calculate volume occupied by neighbors
                         vol_neighbors = 0
@@ -362,10 +345,7 @@ class LocalMap():
         vol_search = self.get_search_volume(pos,rad).reshape(xv.shape)
 
         # Initialize cKDtree
-        bs = self.get_special_boxsize()
         kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
-        # kdtree_grid = scipy.spatial.cKDTree( pos.transpose(), boxsize=self.get_special_boxsize())
-        # dists = kdtree_grid.sparse_distance_matrix(kdtree, rad)
 
         # Put pos_c inside periodic box
         neighbors_all = kdtree.query_ball_point( pos_tup, r=rad)
@@ -430,7 +410,6 @@ class LocalMap():
         vol_search = self.get_search_volume(pos,rad).reshape(xv.shape)
 
         # Initialize cKDtrees
-        bs = self.get_special_boxsize()
         kdtree = scipy.spatial.cKDTree( pos_sample.transpose(), boxsize=self.get_special_boxsize())
 
         # Put pos_c inside periodic box
@@ -470,7 +449,7 @@ class LocalMap():
 
         # sample points
         xv,yv,zv = self.GetSamplePoints()
-        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        # pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
 
         # Get Sample Positions and Volumes
         pos_sample,_,_ = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -514,7 +493,7 @@ class LocalMap():
 
         # sample points
         xv,yv,zv = self.GetSamplePoints()
-        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        # pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
 
         # Get Sample Positions and Volumes
         pos_sample,_,_ = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -558,7 +537,7 @@ class LocalMap():
 
         # sample points
         xv,yv,zv = self.GetSamplePoints()
-        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        # pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
 
         # Get Sample Positions and Volumes
         pos_sample,_,_ = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -610,7 +589,7 @@ class LocalMap():
 
         # sample points
         xv,yv,zv = self.GetSamplePoints()
-        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        # pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
 
         # Get Sample Positions and Volumes
         pos_sample,_,_ = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -654,7 +633,7 @@ class LocalMap():
 
         # sample points
         xv,yv,zv = self.GetSamplePoints()
-        pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
+        # pos = np.vstack((xv.flatten(),yv.flatten(), zv.flatten()))
 
         # Get Sample Positions and Volumes
         pos_sample,_, idx_in_original = self.SampleFilamentLength(pos_plus, pos_minus)
@@ -785,7 +764,7 @@ class LocalMap():
         zz = np.arange(bs_low[2], bs_high[2], width)
         
         # Apply PBC here
-        bs = self.get_special_boxsize()
+        # bs = self.get_special_boxsize()
         xv,yv,zv = np.meshgrid(xx,yy,zz,indexing='ij')
         return xv,yv,zv
     # }}}
@@ -820,7 +799,7 @@ class LocalMap():
 
         elif self.confinement_ == 'cylindrical':
             cyl_center = np.array( self.geometry_['center'] )
-            cyl_radius = self.geometry_['radius'] 
+            # cyl_radius = self.geometry_['radius'] 
 
             # impact parameter b
             # This is minimum distance from cylinder axis to point
@@ -834,7 +813,7 @@ class LocalMap():
         elif self.confinement_ == 'spherical':
             # Calculate distance from Confinement sphere center for all pts
             sph_center = np.array( self.geometry_['center'] )
-            sph_radius = self.geometry_['radius'] 
+            # sph_radius = self.geometry_['radius'] 
             d_vals = np.linalg.norm( pos-sph_center.reshape(-1,1), axis=0)
             if self.LUT_ is None:
                 self.BuildLUT()
@@ -842,7 +821,7 @@ class LocalMap():
 
         elif self.confinement_ == 'planar':
 
-            zrange = np.array( self.geometry_['range'] )
+            # zrange = np.array( self.geometry_['range'] )
             z_vals = pos[-1,:]
 
             if self.LUT_ is None:
@@ -1086,7 +1065,7 @@ class LocalMap():
                 cmap=colormap, interpolation='quadric', 
                 origin='lower', vmin=vmin, vmax=vmax,
                 extent=( xe[0], xe[1], ye[0], ye[1]) )
-        cb = plt.colorbar(im0, ax=axs[0], label=label)
+        plt.colorbar(im0, ax=axs[0], label=label)
         axs[0].set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$')
         axs[0].set_xticks(xe)
         axs[0].set_yticks(ye)
@@ -1158,7 +1137,7 @@ class LocalMap():
                     cmap=cmap, interpolation='nearest', 
                     origin='lower', vmin=vlow, vmax=vhigh,
                     extent=( xe[0], xe[1], ye[0], ye[1]) )
-            cb = plt.colorbar(im0, ax=axs[jrow,0], label=label[jrow])
+            plt.colorbar(im0, ax=axs[jrow,0], label=label[jrow])
             axs[jrow,0].set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$')
             axs[jrow,0].set_xticks(xe)
             axs[jrow,0].set_yticks(ye)

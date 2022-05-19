@@ -1,10 +1,6 @@
-from numba import njit
 import numpy as np
 import src.decorators
 from src.DataHandler import *
-# import decorators
-# from DataHandler import *
-import pdb
 import scipy.spatial.ckdtree
 import math
 
@@ -62,8 +58,6 @@ def calc_local_packing_fraction( c0, c1, diameter, boxsize):
     return pf
 
 @src.decorators.timer
-# @decorators.timer
-# @njit(parallel=True)
 def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
     """
     Calculate the local packing fraction for single time frame
@@ -104,7 +98,7 @@ def calc_local_packing_fraction_frame( c0, c1, diameter, boxsize, sampling=5):
         idx_query = np.arange(idx*sampling , idx*sampling + sampling)
 
         # get indices that are not part of current filament
-        idxSample = idxNeigh[idx_query,:].flatten()
+        # idxSample = idxNeigh[idx_query,:].flatten()
         d_collision = np.nanmean(dists[idx_query,:])
 
         vol_occupied = math.pi * fil_len[idx]* (d_collision/2.)**2 + (4/3)*math.pi*(d_collision/2.)**3

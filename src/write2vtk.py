@@ -1,9 +1,7 @@
 import vtk
 import numpy as np
-from vtk.numpy_interface import dataset_adapter as dsa
 from vtk.util.numpy_support import numpy_to_vtk
 from pathlib import Path
-import pdb
 
 
 def add_array_to_vtk(array2D, arrayName, sim_path, data_name='Sylinder'):
@@ -15,8 +13,6 @@ def add_array_to_vtk(array2D, arrayName, sim_path, data_name='Sylinder'):
 
     # assemble files to save to
     files = sorted( list(Path(sim_path).glob('**/Sylinder*.pvtp')), key=fileKey)
-    # for ifil in files:
-        # print(ifil)
 
     # add array to files
     for jt,fil in enumerate(files):

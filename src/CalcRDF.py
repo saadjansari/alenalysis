@@ -1,10 +1,7 @@
 import numpy as np
-import random, pdb
 from matplotlib import pyplot as plt
 import scipy.spatial.ckdtree
 from scipy.interpolate import RectBivariateSpline
-import time
-from src.decorators import timer
 
 # Plotting
 def PlotRDF(FData, params, frame_avg_window=100,**kwargs):
@@ -550,7 +547,7 @@ class RDF():
         radii = self.get_radii()
 
         # Initialize gr array
-        g_r = np.zeros(shape=(len(radii)))
+        # g_r = np.zeros(shape=(len(radii)))
 
         # Get points number density
         num_density = self.calc_number_density(c.shape[1])
@@ -606,8 +603,8 @@ class RDF():
         radii = self.get_radii()
 
         # Initialize gr array
-        g_r_p = np.zeros(shape=(len(radii)))
-        g_r_ap = np.zeros(shape=(len(radii)))
+        # g_r_p = np.zeros(shape=(len(radii)))
+        # g_r_ap = np.zeros(shape=(len(radii)))
 
         # Get points number density
         num_density = self.calc_number_density(c.shape[1])

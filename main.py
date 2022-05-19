@@ -1,17 +1,14 @@
 import os 
 from pathlib import Path
-import pdb 
 import h5py
-# import pickle
 import tracemalloc
 import gc
-import numpy as np
 import sys
 import yaml
-from src.DataHandler import FilamentSeries, CrosslinkerSeries, AddCorrelationsToDataSeries
+from src.DataHandler import AddCorrelationsToDataSeries
 from src.read_files import read_sim
 from src.CalcNumXlinks import PlotStateCounts, PlotXlinkPerFilament, PlotXlinkPerFilamentVsTime, PlotXlinkPerFilamentVsTimeMax
-from src.CalcOrderParameters import PlotNematicOrder, PlotPolarOrder, PlotNematicAndPolarOrder, PlotZOrder
+from src.CalcOrderParameters import PlotNematicOrder, PlotPolarOrder 
 from src.CalcOverlaps import PlotEffectiveDiameter
 from src.CalcMSD import PlotMSD
 from src.CalcDensityMaps import PlotFilamentDensityMovie, PlotFilamentDensityLastNframes
@@ -21,7 +18,6 @@ from src.CalcCondensationXlinks import PlotXlinkClusters
 from src.CalcMobility import PlotMobilityFilamentVsTime, PlotMobilityCrosslinkerHist
 from src.CalcOrderParametersLocal import *
 from src.unpickler import renamed_load
-from src.CalcPackingFraction import PlotLocalPackingFractionHistogram, PlotLocalPackingFractionVsTime
 from src.CalcContactNumber import PlotContactNumberHistogram, PlotContactNumberVsTime, WriteContactNumber2vtk
 from src.CalcCrosslinkerOrientations import PlotXlinkOrientations
 from src.CalcRDF import PlotRDF, PlotRDF_PAP
@@ -29,6 +25,7 @@ from src.Write3DOrientation2vtk import Write3DOrientation2vtk
 from src.CalcCrosslinkerPositionOnFilament import PlotCrosslinkerPositionOnFilament, PlotCrosslinkerLength
 from src.CalcExtensileMotors import PlotExtensileFilamentPairs
 from src.CalcCrosslinkerDwellTime import PlotCrosslinkerDwellTime
+from src.FrapVTK import WriteFrapIntensity
 
 def main( params):
 
@@ -167,6 +164,10 @@ def main( params):
     if cfg['WriteCorrelationsToVTK']:
         WriteLocalOrder2vtk(FData, params)
         WriteContactNumber2vtk(FData, params)
+
+    # Write FRAP to VTK
+    if cfg['WriteFRAPToVTK']:
+        WriteFrapIntensity(FData, bleachFrame=1000, params=params)
     # }}}
 
     # Cleanup {{{

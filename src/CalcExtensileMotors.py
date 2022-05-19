@@ -1,7 +1,4 @@
 import numpy as np
-import os
-import seaborn as sns
-import pdb
 import matplotlib.pyplot as plt
 
 # PlotExtensileFilamentPairs{{{

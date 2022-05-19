@@ -29,6 +29,6 @@ def calc_curvature(x,y):
     t_component = np.array([d2s_dt2] * 2).transpose()
     n_component = np.array([curvature * ds_dt * ds_dt] * 2).transpose()
 
-    acceleration = t_component * tangent + n_component * normal
+    # acceleration = t_component * tangent + n_component * normal
 
     return curvature

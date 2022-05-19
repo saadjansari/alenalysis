@@ -1,8 +1,6 @@
-from numba import njit
 import numpy as np
 from matplotlib import pyplot as plt
 import src.decorators
-import pdb
 from scipy.ndimage import convolve as conv
 
 
@@ -74,7 +72,6 @@ def calc_mobility(pos,windowSize=10):
     # calculate mobility 3D: squared displacement
 
     nfil = pos.shape[1]
-    ntime = pos.shape[2]
 
     convKernel = np.ones(windowSize)/windowSize
     cumDisp = np.zeros_like(pos[-1,:,:])

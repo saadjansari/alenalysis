@@ -1,5 +1,4 @@
 import yaml
-import pdb
 import os
 
 # Read yaml file for sims to analyze

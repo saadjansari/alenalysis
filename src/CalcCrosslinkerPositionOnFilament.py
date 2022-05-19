@@ -1,7 +1,4 @@
 import numpy as np
-import os
-import seaborn as sns
-import pdb
 import matplotlib.pyplot as plt
 
 # PlotCrosslinkerPositionOnFilament {{{
@@ -68,7 +65,7 @@ def PlotCrosslinkerPositionOnFilament( FData, XData, params):
     fig,ax = plt.subplots(1,2, sharey=True)
 
     # Head 0
-    im = ax[0].imshow(D0.T, cmap='viridis', interpolation='gaussian', 
+    ax[0].imshow(D0.T, cmap='viridis', interpolation='gaussian', 
             aspect='auto', vmin=0, vmax=1,origin='upper',
             extent=[-1, 1, frames[-1], frames[0]])
     ax[0].set(title='Head 0', ylabel='Frame', xlabel='Position on filament')

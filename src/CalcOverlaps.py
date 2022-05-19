@@ -2,9 +2,6 @@ from numba import njit
 import numpy as np
 import src.decorators
 from src.DataHandler import *
-# import decorators
-# from DataHandler import *
-import scipy.spatial.ckdtree
 
 # Plotting
 def PlotEffectiveDiameter(FData, savepath):
@@ -176,7 +173,7 @@ def minDistBetweenTwoFil(p1, p2, p3, p4, box_size):
     # get the difference of the two closest points
     dP = w + (sc * u) - (tc * v);  # = S1(sc) - S2(tc)
     distance = np.linalg.norm(dP);
-    outV = dP;
+    # outV = dP;
 
     # outV = outV      # vector connecting the closest points
     # cp_1 = p2+sc*u  # Closest point on object 1
@@ -200,66 +197,3 @@ def minDistBetweenAllFilaments(a0,a1, b0,b1, box_size):
                 dmat[idx2,idx1] = dmat[idx1,idx2]
                 
     return dmat
-
-# def PlotEffectiveDiameterKD(FData, savepath):
-    # """ Plot the effective diameter probablity distribution via KD"""
-
-    # print('Plotting effective diameter')
-    # # Overlaps
-    # overlaps = calc_effective_diameter_kd( FData.pos_minus_, FData.pos_plus_, FData.config_['diameter_fil'])
-
-    # # Bins
-    # bins = np.linspace(0,1,100)
-    # cen = (bins[:-1]+bins[1:])/2
-
-    # # Plots
-    # fig,ax = plt.subplots()
-    # counts = ax.hist(overlaps, bins, density=True)[0]
-    
-    # # Effective diameter
-    # Deff = np.sum( counts*cen) / np.sum(counts)
-
-    # # Labels
-    # ax.set(xlabel='Collision diameter / D', 
-            # ylabel='Probability Density', 
-            # title='Effective Diameter = {:.3f}D'.format(Deff))
-    # ax.set_xlim(left=-0.001)
-    # ax.set_ylim(bottom=-0.01)
-
-    # plt.tight_layout()
-    # plt.savefig(savepath, bbox_inches="tight")
-
-# @decorators.timer
-# def calc_effective_diameter_kd(pos_minus, pos_plus, diameter):
-    # # Calculate the effective diameter by computing overlaps 
-    
-    # # Number of frames 
-    # n_frames = pos_minus.shape[2]
-
-    # # Overlap distance list
-    # overlapList = []
-    
-    # # Max filament length
-    # max_len = 1.2*np.max( ( np.linalg.norm( pos_plus-pos_minus, axis=0)) )
-
-    # for jframe in range(0,n_frames,100):
-        # print('Frame = {0}/{1}'.format(jframe,n_frames), end='\r', flush=True )
-
-        # # Determine which pair distances to consider
-        # coms = (pos_minus[:,:,jframe] + pos_plus[:,:,jframe])/2
-        # kdtree = scipy.spatial.cKDTree( coms.transpose())
-        # pairs = kdtree.query_pairs(r=max_len)
-        # for (f1,f2) in pairs:
-            # if f1 == f2: 
-                # continue
-            # dd = minDistBetweenTwoFil(
-                    # pos_minus[:,f1,jframe], 
-                    # pos_plus[:,f1,jframe], 
-                    # pos_minus[:,f2,jframe], 
-                    # pos_plus[:,f2,jframe]
-                    # ) / diameter
-            
-            # if dd <= 1:
-                # overlapList.append( dd )
-    
-    # return np.array( overlapList)

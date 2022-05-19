@@ -1,10 +1,6 @@
 import numpy as np
-import random, pdb, os
+import os
 from matplotlib import pyplot as plt
-import scipy.spatial.ckdtree
-from scipy.interpolate import RectBivariateSpline
-import time
-from mpl_toolkits.mplot3d import Axes3D
 import shutil
 from pathlib import Path
 
@@ -26,7 +22,7 @@ def PlotFilamentDensityLastNframes(FData, savepath, N=10,**kwargs):
     for jdim in range(len(rho.shape)):
         vmax = np.max([vmax, np.max(np.mean(rho, axis=jdim))])
             
-    fig,ax = rhoMap.Plot2D(rho, vmax=vmax, colormap='hot')
+    rhoMap.Plot2D(rho, vmax=vmax, colormap='hot')
     plt.tight_layout()
     plt.savefig(savepath, bbox_inches="tight")
     plt.close()
@@ -304,7 +300,7 @@ class DensityMap():
         im0 = axs[0].imshow(np.mean(rho,axis=2).transpose(), cmap=colormap, interpolation='quadric', 
                 origin='lower', aspect='auto', vmin=vmin, vmax=vmax,
                 extent=( xe[0], xe[1], ye[0], ye[1]) )
-        cb = plt.colorbar(im0, ax=axs[0], label='Density')
+        plt.colorbar(im0, ax=axs[0], label='Density')
         axs[0].set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$')
         axs[0].set_xticks(xe)
         axs[0].set_yticks(ye)
@@ -409,109 +405,5 @@ class DensityMap():
         
         return fig,ax
     # }}}
-
-    def Plot3D(self, rho):
-        bin_edges, bin_centers = self.GetBins()
-        if self.confinement_ == 'cylindrical' or self.confinement_ == 'spherical':
-            print('3D plot not possible')
-            return 0,0
-
-        # edges
-        xe = [bin_edges[0][0], bin_edges[0][-1]]
-        ye = [bin_edges[1][0], bin_edges[1][-1]]
-        ze = [bin_edges[2][0], bin_edges[2][-1]]
-
-        # 2D histograms (XY,XZ,YZ) as contour plots
-        #Setup a 3D figure and plot points as well as a series of slices
-        fig = plt.figure()
-        ax1 = fig.add_subplot(111, projection='3d')
-
-        #Use one less than bin edges to give rough bin location
-        X, Y, Z = np.meshgrid(bin_centers[0],bin_centers[1], bin_centers[2], indexing='ij')
-        
-        cpXY1 = ax1.contourf(np.mean(rho, axis=2), 
-                          zdir='z', 
-                          offset=ze[0], 
-                          level=100, cmap=plt.cm.RdYlBu_r, alpha=1.0,
-                          origin='lower', extent=( xe[0], xe[1], ye[0], ye[1])
-                          )
-        cpXY2 = ax1.contourf(np.mean(rho, axis=2), 
-                          zdir='z', 
-                          offset=ze[1], 
-                          level=100, cmap=plt.cm.RdYlBu_r, alpha=1.0,
-                          origin='lower', extent=( xe[0], xe[1], ye[0], ye[1])
-                          )
-        cpXZ1 = ax1.contourf(np.mean(rho, axis=1), 
-                          zdir='y', 
-                          offset=ye[0], 
-                          level=100, cmap=plt.cm.RdYlBu_r, alpha=1.0,
-                          origin='lower', extent=( xe[0], xe[1], ze[0], ze[1])
-                          )
-        cpXZ2 = ax1.contourf(X[:,0,:], np.mean(rho, axis=1), Z[:,0,:],
-                          zdir='y', 
-                          offset=ye[1], 
-                          level=100, cmap=plt.cm.RdYlBu_r, alpha=1.0,
-                          origin='lower', extent=( xe[0], xe[1], ze[0], ze[1]) )
-
-        cpYZ1 = ax1.contourf(np.mean(rho, axis=0),
-                          zdir='x', 
-                          offset=xe[0], 
-                          level=100, cmap=plt.cm.RdYlBu_r, alpha=1.0,
-                          origin='lower', extent=( ye[0], ye[1], ze[0], ze[1]) )
-        cpYZ2 = ax1.contourf(np.mean(rho, axis=0),Y[0,:,:], Z[0,:,:],
-                          zdir='x', 
-                          offset=xe[1], 
-                          level=100, cmap=plt.cm.RdYlBu_r, alpha=1.0,
-                          origin='lower', extent=( ye[0], ye[1], ze[0], ze[1]) )
-
-
-        # cpXY1 = ax1.contourf(X[:,:,0],Y[:,:,0], np.mean(rho, axis=2), 
-                          # zdir='z', 
-                          # offset=ze[0], 
-                          # level=100, 
-                          # cmap=plt.cm.RdYlBu_r, 
-                          # alpha=0.5)
-        # cpXY2 = ax1.contourf(X[:,:,0],Y[:,:,0], np.mean(rho, axis=2), 
-                          # zdir='z', 
-                          # offset=ze[1], 
-                          # level=100, 
-                          # cmap=plt.cm.RdYlBu_r, 
-                          # alpha=1.0)
-
-        # cpXZ1 = ax1.contourf(X[:,0,:], np.mean(rho, axis=1), Z[:,0,:],
-                          # zdir='y', 
-                          # offset=ye[0], 
-                          # level=100, 
-                          # cmap=plt.cm.RdYlBu_r, 
-                          # alpha=0.5)
-        # cpXZ2 = ax1.contourf(X[:,0,:], np.mean(rho, axis=1), Z[:,0,:],
-                          # zdir='y', 
-                          # offset=ye[1], 
-                          # level=100, 
-                          # cmap=plt.cm.RdYlBu_r, 
-                          # alpha=0.5)
-
-        # cpYZ1 = ax1.contourf(np.mean(rho, axis=0),Y[0,:,:], Z[0,:,:],
-                          # zdir='x', 
-                          # offset=xe[0], 
-                          # level=100, 
-                          # cmap=plt.cm.RdYlBu_r, 
-                          # alpha=0.5)
-        # cpYZ2 = ax1.contourf(np.mean(rho, axis=0),Y[0,:,:], Z[0,:,:],
-                          # zdir='x', 
-                          # offset=xe[1], 
-                          # level=100, 
-                          # cmap=plt.cm.RdYlBu_r, 
-                          # alpha=0.5)
-
-        ax1.set_xlim(xe[0], xe[1])
-        ax1.set_ylim(ye[0], ye[1])
-        ax1.set_zlim(ze[0], ze[1])
-        plt.colorbar(cpYZ1)
-        ax1.set(xlabel=r'$X (\mu m)$', ylabel=r'$Y (\mu m)$', zlabel=r'$Z (\mu m)$')
-        plt.show()
-        plt.close()
-
-        return fig,ax1
     
     # }}}

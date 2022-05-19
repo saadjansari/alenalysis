@@ -372,7 +372,7 @@ def minDistBetweenTwoFil(p1, p2, p3, p4, box_size):
     # get the difference of the two closest points
     dP = w + (sc * u) - (tc * v);  # = S1(sc) - S2(tc)
     distance = np.linalg.norm(dP);
-    outV = dP;
+    # outV = dP;
 
     # outV = outV      # vector connecting the closest points
     # cp_1 = p2+sc*u  # Closest point on object 1

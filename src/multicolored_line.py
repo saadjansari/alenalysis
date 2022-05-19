@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
-from matplotlib.colors import ListedColormap, BoundaryNorm
 
 def plot_multicolored_line(x,y,color_by,ax, label='None', alpha=0.7,lw=1):
 

@@ -1,5 +1,4 @@
 import numpy as np
-import pdb
 
 def calc_gyration_tensor3d_pbc(pos, box_size):
     """ calulate gyration tensor of pos (N x 3) with pbc """

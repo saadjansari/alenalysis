@@ -1,25 +1,19 @@
-from numba import njit
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib as mpl
-import src.decorators
 from src.CalcMobility import calc_mobility
 from src.CalcNumXlinks import calc_num_xlink_filament
-import pdb
 from pathlib import Path
 import pickle
-import pandas as pd
 from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans, DBSCAN
+from sklearn.cluster import DBSCAN
 import seaborn as sns
 from src.CalcOrderParameters import calc_nematic_tensor, calc_nematic_basis
 from src.CalcMSD import calc_msd_fft
-from scipy.spatial.distance import pdist, squareform
 from src.calc_gyration_tensor import calc_gyration_tensor3d_pbc
 from src.CalcPackingFraction import calc_local_packing_fraction_frame
 from src.write2vtk import add_array_to_vtk
 from sklearn.mixture import GaussianMixture
-from sklearn.neighbors import NearestNeighbors
 from src.unfold_trajectories import unfold_trajectories_njit, unfold_trajectory_njit
 from src.DataHandler import AddCorrelationsToDataSeries
 from src.multicolored_line import plot_multicolored_lines
@@ -61,7 +55,7 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
                 savepath=params['plot_path'] / 'condensed_filament_msd.pdf',
                 datapath=params['data_filestream'])
         condensed_msd_components(FData.get_com(), FData.orientation_, labels,
-                FData.config_['box_size'], N=1000,
+                FData.config_['box_size'], N=400,
                 save=True, savepath=params['plot_path'] / 'condensed_msd_components.pdf',
                 datapath=None, timestep=0.05)
 
@@ -211,13 +205,15 @@ def condensed_via_xlinks_and_mobility(XData, FData, savepath=None, save=False, d
     data[:,1] = mobi.flatten()
 
     n_clusters = 2
-    scaler = StandardScaler().fit(data)
-    X_std = scaler.transform(data)
+    # scaler = StandardScaler().fit(data)
+    # X_std = scaler.transform(data)
 
     model = GaussianMixture(n_components=n_clusters).fit( data_fit)
     centers = model.means_
     # Model score
     print('GMM BIC score = {0:.2f}'.format( model.bic(data) ) )
+    print(names)
+    print(model.means_) 
 
     # labels = model.predict( scaler.transform(data))
     labels = model.predict( data)
@@ -241,7 +237,7 @@ def condensed_via_xlinks_and_mobility(XData, FData, savepath=None, save=False, d
     # Plot filaments of last frame
     if save:
         jf = -1
-        p0 = FData.pos_minus_[:,:,jf]
+        # p0 = FData.pos_minus_[:,:,jf]
         p1 = FData.pos_plus_[:,:,jf]
         fig,ax = plt.subplots(1,3, figsize=(12,4))
         colors = ['Gray','Teal']
@@ -324,8 +320,8 @@ def condensed_multidimensional(XData, FData, savepath=None, save=False, datapath
     data[:,2] = nx.flatten()
 
     n_clusters = 2
-    scaler = StandardScaler().fit(data)
-    X_std = scaler.transform(data)
+    # scaler = StandardScaler().fit(data)
+    # X_std = scaler.transform(data)
 
     model = GaussianMixture(n_components=n_clusters).fit( data_fit)
     centers = model.means_
@@ -358,7 +354,7 @@ def condensed_multidimensional(XData, FData, savepath=None, save=False, datapath
     # Plot filaments of last availabel frame
     if save:
         jf = nframe-1
-        p0 = FData.pos_minus_[:,:,jf]
+        # p0 = FData.pos_minus_[:,:,jf]
         p1 = FData.pos_plus_[:,:,jf]
         fig,ax = plt.subplots(1,3, figsize=(12,4))
         colors = ['Gray','Teal']
@@ -436,7 +432,7 @@ def condensed_networkx(XData, FData, params, savepath=None, save=False, datapath
     # Plot filaments of last availabel frame
     if save:
         jf = nframe-1
-        p0 = FData.pos_minus_[:,:,jf]
+        # p0 = FData.pos_minus_[:,:,jf]
         p1 = FData.pos_plus_[:,:,jf]
         fig,ax = plt.subplots(1,3, figsize=(12,4))
         colors = ['Gray','Teal']
@@ -593,8 +589,8 @@ def cluster_via_dbscan(pos_all, box_size, savepath=None, save=False):
             
         n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
 
-        size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
-        n_noise_ = list(labels).count(-1)
+        # size_cluster = [np.sum(labels==ii) for ii in range(n_clusters_)]
+        # n_noise_ = list(labels).count(-1)
         # print("Estimated number of clusters: %d" % n_clusters_)
         # print("Estimated number of noise points: %d" % n_noise_)
         # if n_clusters_ > 2:
@@ -1135,7 +1131,7 @@ def PlotCondensedTrajectories(FData, labels, N=20, savepath=None):
 
     # Get the filaments that are condensed for the last 200 frames
     idx = np.sum( labels[:,-1*N:], axis=1) == 0
-    pos = FData.pos_plus_[:,idx,-1*N:]
+    # pos = FData.pos_plus_[:,idx,-1*N:]
     pos = FData.unfold_trajectories('plus')[:,idx,-1*N:]
 
     fig,ax = plt.subplots()
@@ -1159,7 +1155,7 @@ def TrackClusterLabels(labels):
     from scipy import stats
 
     nFrames = labels.shape[1]
-    nParticles = labels.shape[0]
+    # nParticles = labels.shape[0]
 
     labels_tracked = np.zeros_like(labels)
     labels_tracked[:] = -1
@@ -1262,7 +1258,7 @@ def PlotResidenceTimes(labels, N=400, dt=0.05, savepath=None, datapath=None):
     residence_times = []
 
     bins = np.linspace(0,20,100)
-    bins_c = 0.5*(bins[1:]+bins[:-1])
+    # bins_c = 0.5*(bins[1:]+bins[:-1])
 
     # Loop over filaments, and find residence times
     for jfil in np.arange(labels_choose.shape[1]):
@@ -1422,7 +1418,7 @@ def Plot3DBundleTwist(FData, labels, nematic_basis=False,savepath=None):
     com = calc_com_pbc( pos.T, FData.config_['box_size'])
 
     # Find filament positions relative to center of mass
-    pos_rel = pos - com.reshape(-1,1)
+    # pos_rel = pos - com.reshape(-1,1)
     p0_rel = p0 - com.reshape(-1,1)
     p1_rel = p1 - com.reshape(-1,1)
     
@@ -1454,7 +1450,7 @@ def Plot3DBundle_ColorByVec(p0, p1, box_size,
     pos = (p0 + p1 )/2
     
     # Find condensate center of mass
-    com = calc_com_pbc( pos.T, box_size)
+    # com = calc_com_pbc( pos.T, box_size)
     
     if color_vec is not None:
         if color_range is None:
@@ -1543,7 +1539,7 @@ def condensed_aspect_ratio(pos, orientation, labels, box_size, savepath=None, sa
 
             # sort vals (ascending order)
             inds = vals.argsort()
-            vals = vals[inds]
+            # vals = vals[inds]
             vecs = vecs[:,inds]
             
             basis = vecs[:,::-1]
@@ -1674,7 +1670,7 @@ def condensed_msd_components(pos, orientation, labels, box_size, savepath=None, 
 
             # sort vals (ascending order)
             inds = vals.argsort()
-            vals = vals[inds]
+            # vals = vals[inds]
             vecs = vecs[:,inds]
             basis = vecs[:,::-1]
             if basis_old is not None:
@@ -1700,7 +1696,7 @@ def condensed_msd_components(pos, orientation, labels, box_size, savepath=None, 
 
     MSD_mu = np.mean(msd,axis=1).squeeze()
     MSD_std = np.std(msd,axis=1).squeeze()
-    MSD_sem = MSD_std/np.sqrt(msd.shape[1])
+    # MSD_sem = MSD_std/np.sqrt(msd.shape[1])
 
     # Display
     timeArray = timestep * np.arange(0, pos.shape[-1])
@@ -1732,7 +1728,7 @@ def condensed_msd_components(pos, orientation, labels, box_size, savepath=None, 
 def condensed_crosslinker_number(XData, labels, params, datapath=None):
 
     nframe = XData.nframe_
-    nx = XData.nxlink_
+    # nx = XData.nxlink_
     nx_condensed = np.zeros( nframe)
         
     # for each frame, find binding state of xlinks

@@ -1,8 +1,6 @@
 from numba import njit
 import numpy as np
-import src.decorators
 from src.DataHandler import *
-import pdb
 
 # Plotting
 def PlotNematicOrder(FData, params, savepath):
@@ -186,7 +184,7 @@ def calc_nematic_basis( orient_array):
     """
 
     # Num filaments
-    n_fil = orient_array.shape[1]
+    # n_fil = orient_array.shape[1]
 
     # Find Q tensor
     Q = calc_nematic_tensor(orient_array)
