@@ -1,4 +1,6 @@
 # ALENALYSIS
+
+[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/saadjansari/alenalysis.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/saadjansari/alenalysis/context:python)
 ___
 A python-based analysis pipeline for simulations performed via the aLENS software.
 ___
