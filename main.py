@@ -26,6 +26,7 @@ from src.CalcCrosslinkerPositionOnFilament import PlotCrosslinkerPositionOnFilam
 from src.CalcExtensileMotors import PlotExtensileFilamentPairs
 from src.CalcCrosslinkerDwellTime import PlotCrosslinkerDwellTime
 from src.FrapVTK import WriteFrapIntensity
+from src.CalcPairDistribution import PlotPairDistribution, PlotCrosslinkedPairDist
 
 def main( params):
 
@@ -66,6 +67,8 @@ def main( params):
     if cfg['PlotTrajectories']:
         FData.plot_trajectories( params['plot_path']/ 'trajectory_filament.pdf', alpha=0.3)
         XData.plot_trajectories( params['plot_path']/ 'trajectory_xlinker.pdf', alpha=0.3)
+    else:
+        pass
 
     # Crosslinker Stats 
     if cfg['PlotCrosslinkerStats']:
@@ -75,22 +78,30 @@ def main( params):
         PlotXlinkPerFilamentVsTimeMax( FData, XData, params['plot_path']/ 'graph_xlinker_per_filament_max.pdf', 5)
         PlotCrosslinkerPositionOnFilament(FData, XData, params)
         PlotXlinkOrientations(FData, XData, savepath / 'hist_crosslinker_angles.pdf')
+    else:
+        pass
 
     # Crosslinker Energy 
     if cfg['PlotCrosslinkerLength']:
         # XData.plot_length_mean_vs_time( savepath / 'graph_xlinker_length_vs_time.pdf')
         # XData.plot_energy_mean_vs_time( savepath / 'graph_xlinker_energy_vs_time.pdf')
         PlotCrosslinkerLength(XData, params, savepath / 'graph_xlinker_length_vs_time.pdf')
+    else:
+        pass
 
     
     # Order parameters
     if cfg['PlotGlobalOrderParameters']:
         PlotNematicOrder( FData, params, savepath/ 'graph_nematic_order.pdf')     
         PlotPolarOrder( FData, params, savepath / 'graph_polar_order.pdf')     
+    else:
+        pass
 
     # Fraction Extensile Motors
     if cfg['PlotExtensileMotors']:
         PlotExtensileFilamentPairs(FData, XData, params, savepath / 'graph_extensile_motors.pdf')
+    else:
+        pass
     # }}}
 
     # Correlations {{{
@@ -107,9 +118,14 @@ def main( params):
         PlotLocalNematicOrderLocalPolarOrderHistogram( FData, savepath / 'hist2_local_nematic_order_local_polar_order.pdf')     
         # PlotLocalPackingFractionVsTime( FData, savepath / 'local_packing_fraction_img.pdf')     
         # PlotLocalPackingFractionHistogram( FData, savepath / 'local_packing_fraction_hist.pdf') 
+    else:
+        pass
+    
     # Effective diameter
     if cfg['PlotEffectiveDiameter']:
         PlotEffectiveDiameter(FData, savepath / 'hist_effective_diameter.pdf')
+    else:
+        pass
     # }}}
 
     # Dynamics {{{
@@ -119,12 +135,26 @@ def main( params):
         # PlotMobilityCrosslinkerVsTime(XData, savepath / 'mobility_xlinker.pdf')
         PlotMobilityCrosslinkerHist(XData, savepath / 'mobility_xlinker.pdf')
         # PlotCrosslinkerDwellTime(XData, savepath / 'dwell_time_xlinker.pdf')
+    else:
+        pass
     # }}}
 
     # RDF {{{
     if cfg['PlotRDF']:
         PlotRDF(FData, params)
         PlotRDF_PAP(FData, params)
+    else:
+        pass
+    # }}}
+    
+    # PairDistribution {{{
+    if cfg['PlotPairDistribution']:
+        # Test()
+        # PlotPairDistribution(FData, params, savepath/'pair_dist_1second.pdf', window=20)
+        # PlotPairDistribution(FData, params, savepath/'pair_dist_0.1second.pdf', window=2)
+        PlotCrosslinkedPairDist(FData, XData, savepath/'xlinked_pair_min_dist.pdf')
+    else:
+        pass
     # }}}
 
     # Local Maps {{{
@@ -139,19 +169,27 @@ def main( params):
         PlotFlux(FData, savepath / 'map_flux.pdf')
         PlotOrientation(FData, savepath / 'map_orientation.pdf')
         PlotNematicDirector(FData, savepath / 'map_nematic_director.pdf')
+    else:
+        pass
     # }}}
 
     # Condensation/Clustering {{{
     if cfg['ComputeFilamentCondensates']:
         PlotFilamentCondensation(FData, XData, params, write2vtk=cfg['WriteFilamentCondensatesToVTK'])
+    else:
+        pass
 
     # Filament Condensation / Clustering
     if cfg['ComputeFilamentClusters']:
         PlotFilamentClusters(FData, params, N=1000)
+    else:
+        pass
         
     # Crosslinker Clusters
     if cfg['ComputeCrosslinkerClusters']:
         PlotXlinkClusters(XData, params)
+    else:
+        pass
     # }}}
 
     # Write2VTK {{{
@@ -159,15 +197,21 @@ def main( params):
     # Write Angle to VTK
     if cfg['WriteAngleToVTK']:
         Write3DOrientation2vtk(FData, XData, params)
+    else:
+        pass
 
     # Write Correlations to VTK
     if cfg['WriteCorrelationsToVTK']:
         WriteLocalOrder2vtk(FData, params)
         WriteContactNumber2vtk(FData, params)
+    else:
+        pass
 
     # Write FRAP to VTK
     if cfg['WriteFRAPToVTK']:
         WriteFrapIntensity(FData, bleachFrame=1000, params=params)
+    else:
+        pass
     # }}}
 
     # Cleanup {{{

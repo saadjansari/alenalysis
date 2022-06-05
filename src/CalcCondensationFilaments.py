@@ -34,7 +34,7 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     plot_trajectories = False
     plot_residence_times = False
     plot_bundle_twist = False
-    plot_aspect_ratio= False
+    plot_aspect_ratio= True
     
     print('Filaments condensation...') 
     # FData = AddCorrelationsToDataSeries(FData, params['sim_path'])

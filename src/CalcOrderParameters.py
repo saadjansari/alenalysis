@@ -44,7 +44,7 @@ def PlotPolarOrder(FData, params, savepath):
     fig,ax = plt.subplots()
     ax.plot(timeArray, P, 'ko', ms=2);
     ax.set_xlim(left=-0.01)
-    ax.set_ylim(bottom=-1.01, top=1.01)
+    ax.set_ylim(bottom=-0.01, top=1.01)
     ax.set(xlabel='Time (s)')
     ax.set(ylabel='Polar Order')
 

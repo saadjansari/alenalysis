@@ -101,6 +101,9 @@ PlotRDF
 PlotLocalMaps
 : Local density/flux maps/movies
 
+PlotPairDistribution
+: Pair Distribution functions
+
 _Write to VTK files (for visualization in paraview)_
 
 WriteCorrelationsToVTK

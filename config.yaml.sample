@@ -15,6 +15,7 @@ PlotCorrelations: False # Correlations data must be saved
 PlotDynamics: False
 PlotRDF: False
 PlotLocalMaps: False
+PlotPairDistribution: False
 
 # Filament Condensates
 ComputeFilamentCondensates: True
