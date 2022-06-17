@@ -5,17 +5,17 @@
 CorrelationMode: False
 
 # General 
-PlotTrajectories: False
-PlotCrosslinkerStats: False
+PlotTrajectories: True
+PlotCrosslinkerStats: True
 PlotCrosslinkerLength: False
-PlotGlobalOrderParameters: False
+PlotGlobalOrderParameters: True
 PlotExtensileMotors: False
 PlotEffectiveDiameter: False 
 PlotCorrelations: False # Correlations data must be saved
-PlotDynamics: False
+PlotDynamics: True
 PlotRDF: False
 PlotLocalMaps: False
-PlotPairDistribution: False
+PlotPairDistribution: True
 
 # Filament Condensates
 ComputeFilamentCondensates: True
@@ -30,4 +30,4 @@ ComputeCrosslinkerClusters: False
 WriteCorrelationsToVTK: False
 WriteAngleToVTK: False
 WriteFilamentCondensatesToVTK: False
-
+WriteFRAPToVTK: False 

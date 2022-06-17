@@ -175,7 +175,6 @@ def PlotCrosslinkedPairDist(FData, XData, savepath, window=10):
 
     bins = np.linspace(0,0.12,100)
 
-    pdb.set_trace()
     fig,ax = plt.subplots(1,1, figsize=(4,3))
     ax = sns.histplot( x=dists_com, y=dists_min, bins=(bins,bins), 
             cbar=True, cbar_kws=dict(label='Count'), ax=ax)
@@ -203,7 +202,6 @@ def Test():
             extent=(bins[0][0], bins[0][-1], bins[2][0], bins[2][-1]))
     ax2.set_title('XZ')
     plt.show()
-    pdb.set_trace()
     print('hello')
         
 def test_aligned_state( Nx=10, Ny=10, Nz=5, spacing=1):

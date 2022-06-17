@@ -2,6 +2,7 @@ import numpy as np
 
 # calc_com_pbc {{{
 def calc_com_pbc(pos, box_size):
+    """"""
     """ calulate com of pos (N x 3) with pbc """
     
     # Map each dimension from a line to a circle.

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<VTKFile type="PPolyData" version="1.0" byte_order="LittleEndian" header_type="UInt32"> 
+<PPolyData GhostLevel="0"> 
+<PPointData Scalars="scalars">
+<PDataArray Name="idBind" type="Int32" NumberOfComponents="1" format="binary"/>
+</PPointData>
+<PCellData Scalars="scalars">
+<PDataArray Name="gid" type="Int32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="tag" type="Int32" NumberOfComponents="1" format="binary"/>
+</PCellData>
+<PPoints> 
+<PDataArray NumberOfComponents="3" type="Float64" format="binary"/>
+</PPoints> 
+<Piece Source="Protein_r0_92.vtp"/>
+</PPolyData>
+</VTKFile>

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<VTKFile type="PPolyData" version="1.0" byte_order="LittleEndian" header_type="UInt32"> 
+<PPolyData GhostLevel="0"> 
+<PPointData Scalars="scalars">
+<PDataArray Name="gid" type="Int32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="globalIndex" type="Int32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="posIJ" type="Float32" NumberOfComponents="3" format="binary"/>
+<PDataArray Name="normIJ" type="Float32" NumberOfComponents="3" format="binary"/>
+</PPointData>
+<PCellData Scalars="scalars">
+<PDataArray Name="oneSide" type="Int32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="bilateral" type="Int32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="delta0" type="Float32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="gamma" type="Float32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="kappa" type="Float32" NumberOfComponents="1" format="binary"/>
+<PDataArray Name="Stress" type="Float32" NumberOfComponents="9" format="binary"/>
+</PCellData>
+<PPoints> 
+<PDataArray NumberOfComponents="3" type="Float64" format="binary"/>
+</PPoints> 
+<Piece Source="ConBlock_r0_52.vtp"/>
+</PPolyData>
+</VTKFile>

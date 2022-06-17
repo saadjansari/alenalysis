@@ -26,14 +26,14 @@ from src.connected_components import get_nodes_in_clusters
 def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     """ Plot the filament condensation """
 
-    plot_ratio_condensed_filaments = False
+    plot_ratio_condensed_filaments = True
     plot_diffusion = True
     plot_packing_fraction=False
     plot_local_order=False
     plot_time_averaged_label=False
-    plot_trajectories = False
-    plot_residence_times = False
-    plot_bundle_twist = False
+    plot_trajectories = True
+    plot_residence_times = True
+    plot_bundle_twist = True
     plot_aspect_ratio= True
     
     print('Filaments condensation...') 
@@ -88,13 +88,6 @@ def PlotFilamentCondensation(FData, XData, params, write2vtk=False):
     if plot_ratio_condensed_filaments:
         PlotRatioCondensedFilaments(ratio, FData.nfil_, params['plot_path'] / 'condensed_filament_ratio.pdf')
 
-    # Condensed MSD
-    if plot_diffusion:
-        pos_unfolded = FData.unfold_trajectories('com')
-        condensed_msd_diffusion(pos_unfolded, labels, save=True, dt=0.05,N=200,
-                savepath=params['plot_path'] / 'condensed_filament_msd.pdf',
-                datapath=params['data_filestream'])
-
     # Condensed/Vapor PF
     if plot_packing_fraction:
         packing_fraction( 
@@ -133,7 +126,8 @@ def PlotFilamentClusters(FData, params, N=50):
 
     # Filament plus-end clusters
     print('Filaments plus-end clusters...') 
-    pos = FData.pos_plus_
+    print('Filaments com clusters...') 
+    pos = FData.get_com()
     labels = cluster_via_dbscan(pos[:,:,frames], FData.config_['box_size'],
             save=True, savepath=params['plot_path'] / 'cluster_filament_dbscan.pdf')
 
@@ -154,10 +148,10 @@ def PlotFilamentClusters(FData, params, N=50):
             # save=True, datapath=params['data_filestream'])
             
     # Plot cluster astral order 2D
-    PlotClusterAstralOrder( FData.pos_plus_[:2,:,frames], FData.pos_minus_[:2,:,frames], 
-            labels, FData.config_['box_size'][:2], 
-            savepath=params['plot_path']/'cluster_filament_astral_order_XY.pdf', 
-            save=True, datapath=params['data_filestream'])
+    # PlotClusterAstralOrder( FData.pos_plus_[:2,:,frames], FData.pos_minus_[:2,:,frames], 
+            # labels, FData.config_['box_size'][:2], 
+            # savepath=params['plot_path']/'cluster_filament_astral_order_XY.pdf', 
+            # save=True, datapath=params['data_filestream'])
 
     # Filament diffusion within cluster
     cluster_msd_diffusion(FData, labels_tracked, save=True, dt=0.05,
@@ -165,15 +159,15 @@ def PlotFilamentClusters(FData, params, N=50):
             datapath=params['data_filestream'])
 
     # Shape analysis
-    cluster_shape_analysis(pos[:,:,frames], labels, FData.config_['box_size'],
-            datapath=params['data_filestream'])
-    cluster_shape_analysis_extent(pos[:,:,frames], labels, FData.config_['box_size'],
-            save=True, savepath=params['plot_path'] / 'cluster_filament_extent.pdf',
-            datapath=params['data_filestream'])
+    # cluster_shape_analysis(pos[:,:,frames], labels, FData.config_['box_size'],
+            # datapath=params['data_filestream'])
+    # cluster_shape_analysis_extent(pos[:,:,frames], labels, FData.config_['box_size'],
+            # save=True, savepath=params['plot_path'] / 'cluster_filament_extent.pdf',
+            # datapath=params['data_filestream'])
     
     # Nematic order
-    cluster_nematic_order(pos[:,:,frames], FData.orientation_[:,:,frames],labels,
-            datapath=params['data_filestream'])
+    # cluster_nematic_order(pos[:,:,frames], FData.orientation_[:,:,frames],labels,
+            # datapath=params['data_filestream'])
 # }}}
 
 # condensed_via_xlinks_and_mobility {{{
@@ -868,6 +862,12 @@ def condensed_msd_diffusion(pos, labels, N=400, dt=1, save=False, savepath=None,
     
     # Get the filaments that are condensed for the last N frames
     idx = np.sum( labels[:,-1*N:], axis=1) == 0
+    if np.sum(idx) == 0:
+        print('There are no consistently condensed filaments')
+        return
+    else:
+        print('There are {0} consistently condensed filaments'.format(np.sum(dx)))
+
     pos_condensed = pos[:,idx,-1*N:]
 
     # MSD
@@ -1131,6 +1131,11 @@ def PlotCondensedTrajectories(FData, labels, N=20, savepath=None):
 
     # Get the filaments that are condensed for the last 200 frames
     idx = np.sum( labels[:,-1*N:], axis=1) == 0
+    if np.sum(idx) == 0:
+        print('There are no consistently condensed filaments')
+        return
+    else:
+        print('There are {0} consistently condensed filaments'.format(np.sum(dx)))
     # pos = FData.pos_plus_[:,idx,-1*N:]
     pos = FData.unfold_trajectories('plus')[:,idx,-1*N:]
 
@@ -1313,6 +1318,12 @@ def CalcBundleTwist( FData, labels, N=25, savepath=None, datapath=None):
     
     # get constantly condensed filaments for last N frames
     idx = np.sum( labels[:,frames], axis=1) == 0
+    if np.sum(idx) == 0:
+        print('There are no consistently condensed filaments')
+        return np.nan,np.nan
+    else:
+        print('There are {0} consistently condensed filaments'.format(np.sum(dx)))
+
     n_cond = np.sum(idx)
     # idx = np.arange(0,FData.nfil_)
     # n_cond = len(idx)
@@ -1341,6 +1352,9 @@ def CalcBundleTwist( FData, labels, N=25, savepath=None, datapath=None):
 # PlotHistBundleTwist_vs_RadialDist {{{
 def PlotHistBundleTwist_vs_RadialDist( twist,rdist, savepath=None):
 
+    if np.isnan(twist) or np.isnan(rdist):
+        return
+
     # evaluate on a regular grid
     rgrid = np.linspace(0,0.2,40)
     tgrid = np.linspace(-0.3,0.3,40)
@@ -1363,6 +1377,11 @@ def Plot2DBundleTwist_NematicBasis(FData, labels, savepath=None):
 
     # Get condensed filament indices in last frame
     idx = labels[:,-1] == 0
+    if np.sum(idx) == 0:
+        print('There are no consistently condensed filaments')
+        return
+    else:
+        print('There are {0} consistently condensed filaments'.format(np.sum(dx)))
 
     # Get filament com positions 
     pos = FData.get_com()[:,idx,-1]
@@ -1408,6 +1427,11 @@ def Plot3DBundleTwist(FData, labels, nematic_basis=False,savepath=None):
 
     # Get condensed filament indices in last frame
     idx = labels[:,-1] == 0
+    if np.sum(idx) == 0:
+        print('There are no consistently condensed filaments')
+        return
+    else:
+        print('There are {0} consistently condensed filaments'.format(np.sum(dx)))
 
     # Get filament positions 
     p0 = FData.pos_minus_[:,idx,-1]
@@ -1510,6 +1534,10 @@ def condensed_aspect_ratio(pos, orientation, labels, box_size, savepath=None, sa
     frames = np.arange(pos.shape[2])
 
     for jf in frames:
+        lab_condensed = labels[:,jf]
+        if np.sum(lab_condensed) == 0:
+            sigma[:,jf] = np.nan
+            continue 
         cpos = pos[:,labels[:,jf]==0, jf]
 
         if cpos.shape[1] > 0:
